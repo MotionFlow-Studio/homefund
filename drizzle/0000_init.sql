@@ -1,102 +1,103 @@
-CREATE TABLE `expenses` (
-	`id` varchar(36) NOT NULL,
-	`household_id` varchar(36) NOT NULL,
-	`member_id` varchar(36) NOT NULL,
-	`amount_minor` bigint NOT NULL,
-	`category` enum('groceries','household','eating_out','transport','kids','health','clothing','fun','bills','other') NOT NULL,
-	`spent_on` date NOT NULL,
-	`merchant` varchar(120),
-	`note` varchar(280),
-	`source` enum('manual','receipt','voice') NOT NULL DEFAULT 'manual',
-	`created_by_user_id` varchar(36),
-	`created_at` timestamp(3) NOT NULL,
-	`updated_at` timestamp(3) NOT NULL,
-	`deleted_at` timestamp(3),
-	CONSTRAINT `expenses_id` PRIMARY KEY(`id`)
+CREATE TYPE "public"."category" AS ENUM('groceries', 'household', 'eating_out', 'transport', 'kids', 'health', 'clothing', 'fun', 'bills', 'other');--> statement-breakpoint
+CREATE TYPE "public"."expense_source" AS ENUM('manual', 'receipt', 'voice');--> statement-breakpoint
+CREATE TYPE "public"."member_role" AS ENUM('owner', 'adult', 'child');--> statement-breakpoint
+CREATE TABLE "expenses" (
+	"id" uuid PRIMARY KEY NOT NULL,
+	"household_id" uuid NOT NULL,
+	"member_id" uuid NOT NULL,
+	"amount_minor" bigint NOT NULL,
+	"category" "category" NOT NULL,
+	"spent_on" date NOT NULL,
+	"merchant" varchar(120),
+	"note" varchar(280),
+	"source" "expense_source" DEFAULT 'manual' NOT NULL,
+	"created_by_user_id" uuid,
+	"created_at" timestamp(3) with time zone NOT NULL,
+	"updated_at" timestamp(3) with time zone NOT NULL,
+	"deleted_at" timestamp(3) with time zone,
+	"server_seq" bigint DEFAULT 0 NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE `fixed_costs` (
-	`id` varchar(36) NOT NULL,
-	`member_id` varchar(36) NOT NULL,
-	`name` varchar(60) NOT NULL,
-	`amount_minor` bigint NOT NULL,
-	`created_at` timestamp(3) NOT NULL,
-	`updated_at` timestamp(3) NOT NULL,
-	`deleted_at` timestamp(3),
-	CONSTRAINT `fixed_costs_id` PRIMARY KEY(`id`)
+ALTER TABLE "expenses" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
+CREATE TABLE "fixed_costs" (
+	"id" uuid PRIMARY KEY NOT NULL,
+	"member_id" uuid NOT NULL,
+	"name" varchar(60) NOT NULL,
+	"amount_minor" bigint NOT NULL,
+	"created_at" timestamp(3) with time zone NOT NULL,
+	"updated_at" timestamp(3) with time zone NOT NULL,
+	"deleted_at" timestamp(3) with time zone,
+	"server_seq" bigint DEFAULT 0 NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE `households` (
-	`id` varchar(36) NOT NULL,
-	`name` varchar(80) NOT NULL,
-	`currency` char(3) NOT NULL,
-	`created_at` timestamp(3) NOT NULL,
-	`updated_at` timestamp(3) NOT NULL,
-	`deleted_at` timestamp(3),
-	CONSTRAINT `households_id` PRIMARY KEY(`id`)
+ALTER TABLE "fixed_costs" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
+CREATE TABLE "households" (
+	"id" uuid PRIMARY KEY NOT NULL,
+	"name" varchar(80) NOT NULL,
+	"currency" char(3) NOT NULL,
+	"created_at" timestamp(3) with time zone NOT NULL,
+	"updated_at" timestamp(3) with time zone NOT NULL,
+	"deleted_at" timestamp(3) with time zone,
+	"server_seq" bigint DEFAULT 0 NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE `members` (
-	`id` varchar(36) NOT NULL,
-	`household_id` varchar(36) NOT NULL,
-	`user_id` varchar(36),
-	`name` varchar(60) NOT NULL,
-	`role` enum('owner','adult','child') NOT NULL,
-	`color` varchar(7) NOT NULL,
-	`birth_year` int,
-	`created_at` timestamp(3) NOT NULL,
-	`updated_at` timestamp(3) NOT NULL,
-	`deleted_at` timestamp(3),
-	CONSTRAINT `members_id` PRIMARY KEY(`id`),
-	CONSTRAINT `members_household_user_unique` UNIQUE(`household_id`,`user_id`)
+ALTER TABLE "households" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
+CREATE TABLE "members" (
+	"id" uuid PRIMARY KEY NOT NULL,
+	"household_id" uuid NOT NULL,
+	"user_id" uuid,
+	"name" varchar(60) NOT NULL,
+	"role" "member_role" NOT NULL,
+	"color" varchar(7) NOT NULL,
+	"birth_year" smallint,
+	"created_at" timestamp(3) with time zone NOT NULL,
+	"updated_at" timestamp(3) with time zone NOT NULL,
+	"deleted_at" timestamp(3) with time zone,
+	"server_seq" bigint DEFAULT 0 NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE `pay_settings` (
-	`member_id` varchar(36) NOT NULL,
-	`payday_day` tinyint unsigned NOT NULL,
-	`income_minor` bigint NOT NULL,
-	`savings_goal_minor` bigint NOT NULL DEFAULT 0,
-	`created_at` timestamp(3) NOT NULL,
-	`updated_at` timestamp(3) NOT NULL,
-	CONSTRAINT `pay_settings_member_id` PRIMARY KEY(`member_id`)
+ALTER TABLE "members" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
+CREATE TABLE "pay_settings" (
+	"member_id" uuid PRIMARY KEY NOT NULL,
+	"payday_day" smallint NOT NULL,
+	"income_minor" bigint NOT NULL,
+	"savings_goal_minor" bigint DEFAULT 0 NOT NULL,
+	"created_at" timestamp(3) with time zone NOT NULL,
+	"updated_at" timestamp(3) with time zone NOT NULL,
+	"server_seq" bigint DEFAULT 0 NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE `receipt_items` (
-	`id` varchar(36) NOT NULL,
-	`expense_id` varchar(36) NOT NULL,
-	`position` int NOT NULL,
-	`name` varchar(120) NOT NULL,
-	`quantity_milli` int NOT NULL DEFAULT 1000,
-	`unit_price` decimal(19,6),
-	`line_total_minor` bigint NOT NULL,
-	`category` enum('groceries','household','eating_out','transport','kids','health','clothing','fun','bills','other') NOT NULL,
-	`created_at` timestamp(3) NOT NULL,
-	`updated_at` timestamp(3) NOT NULL,
-	`deleted_at` timestamp(3),
-	CONSTRAINT `receipt_items_id` PRIMARY KEY(`id`)
+ALTER TABLE "pay_settings" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
+CREATE TABLE "receipt_items" (
+	"id" uuid PRIMARY KEY NOT NULL,
+	"expense_id" uuid NOT NULL,
+	"position" integer NOT NULL,
+	"name" varchar(120) NOT NULL,
+	"quantity_milli" integer DEFAULT 1000 NOT NULL,
+	"unit_price" numeric(19, 6),
+	"line_total_minor" bigint NOT NULL,
+	"category" "category" NOT NULL,
+	"created_at" timestamp(3) with time zone NOT NULL,
+	"updated_at" timestamp(3) with time zone NOT NULL,
+	"deleted_at" timestamp(3) with time zone,
+	"server_seq" bigint DEFAULT 0 NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE `users` (
-	`id` varchar(36) NOT NULL,
-	`email` varchar(254) NOT NULL,
-	`password_hash` varchar(255) NOT NULL,
-	`created_at` timestamp(3) NOT NULL,
-	`updated_at` timestamp(3) NOT NULL,
-	CONSTRAINT `users_id` PRIMARY KEY(`id`),
-	CONSTRAINT `users_email_unique` UNIQUE(`email`)
-);
---> statement-breakpoint
-ALTER TABLE `expenses` ADD CONSTRAINT `expenses_household_id_households_id_fk` FOREIGN KEY (`household_id`) REFERENCES `households`(`id`) ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE `expenses` ADD CONSTRAINT `expenses_member_id_members_id_fk` FOREIGN KEY (`member_id`) REFERENCES `members`(`id`) ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE `expenses` ADD CONSTRAINT `expenses_created_by_user_id_users_id_fk` FOREIGN KEY (`created_by_user_id`) REFERENCES `users`(`id`) ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE `fixed_costs` ADD CONSTRAINT `fixed_costs_member_id_members_id_fk` FOREIGN KEY (`member_id`) REFERENCES `members`(`id`) ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE `members` ADD CONSTRAINT `members_household_id_households_id_fk` FOREIGN KEY (`household_id`) REFERENCES `households`(`id`) ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE `members` ADD CONSTRAINT `members_user_id_users_id_fk` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE `pay_settings` ADD CONSTRAINT `pay_settings_member_id_members_id_fk` FOREIGN KEY (`member_id`) REFERENCES `members`(`id`) ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE `receipt_items` ADD CONSTRAINT `receipt_items_expense_id_expenses_id_fk` FOREIGN KEY (`expense_id`) REFERENCES `expenses`(`id`) ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-CREATE INDEX `expenses_household_spent_idx` ON `expenses` (`household_id`,`spent_on`);--> statement-breakpoint
-CREATE INDEX `expenses_member_spent_idx` ON `expenses` (`member_id`,`spent_on`);--> statement-breakpoint
-CREATE INDEX `expenses_household_updated_idx` ON `expenses` (`household_id`,`updated_at`);--> statement-breakpoint
-CREATE INDEX `fixed_costs_member_idx` ON `fixed_costs` (`member_id`);--> statement-breakpoint
-CREATE INDEX `members_household_idx` ON `members` (`household_id`);--> statement-breakpoint
-CREATE INDEX `receipt_items_expense_idx` ON `receipt_items` (`expense_id`);
+ALTER TABLE "receipt_items" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
+ALTER TABLE "expenses" ADD CONSTRAINT "expenses_household_id_households_id_fk" FOREIGN KEY ("household_id") REFERENCES "public"."households"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "expenses" ADD CONSTRAINT "expenses_member_id_members_id_fk" FOREIGN KEY ("member_id") REFERENCES "public"."members"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "expenses" ADD CONSTRAINT "expenses_created_by_user_id_users_id_fk" FOREIGN KEY ("created_by_user_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "fixed_costs" ADD CONSTRAINT "fixed_costs_member_id_members_id_fk" FOREIGN KEY ("member_id") REFERENCES "public"."members"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "members" ADD CONSTRAINT "members_household_id_households_id_fk" FOREIGN KEY ("household_id") REFERENCES "public"."households"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "members" ADD CONSTRAINT "members_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "pay_settings" ADD CONSTRAINT "pay_settings_member_id_members_id_fk" FOREIGN KEY ("member_id") REFERENCES "public"."members"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "receipt_items" ADD CONSTRAINT "receipt_items_expense_id_expenses_id_fk" FOREIGN KEY ("expense_id") REFERENCES "public"."expenses"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+CREATE INDEX "expenses_household_spent_idx" ON "expenses" USING btree ("household_id","spent_on");--> statement-breakpoint
+CREATE INDEX "expenses_household_seq_idx" ON "expenses" USING btree ("household_id","server_seq");--> statement-breakpoint
+CREATE INDEX "fixed_costs_member_idx" ON "fixed_costs" USING btree ("member_id","server_seq");--> statement-breakpoint
+CREATE INDEX "households_seq_idx" ON "households" USING btree ("server_seq");--> statement-breakpoint
+CREATE INDEX "members_household_idx" ON "members" USING btree ("household_id","server_seq");--> statement-breakpoint
+CREATE INDEX "members_user_idx" ON "members" USING btree ("user_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "members_household_user_unique" ON "members" USING btree ("household_id","user_id");--> statement-breakpoint
+CREATE INDEX "pay_settings_seq_idx" ON "pay_settings" USING btree ("server_seq");--> statement-breakpoint
+CREATE INDEX "receipt_items_expense_idx" ON "receipt_items" USING btree ("expense_id","server_seq");

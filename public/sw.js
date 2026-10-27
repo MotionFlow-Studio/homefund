@@ -8,7 +8,7 @@
 const VERSION = "v1";
 const PAGES = `pages-${VERSION}`;
 const ASSETS = `assets-${VERSION}`;
-const APP_SHELL = ["/"];
+const APP_SHELL = ["/", "/app", "/signin", "/signup"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(

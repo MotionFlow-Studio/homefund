@@ -1,0 +1,12 @@
+import type { Metadata } from "next";
+import { SignInForm } from "./sign-in-form";
+
+export const metadata: Metadata = {
+  title: "Sign in",
+  description: "Sign in to HomeFund.",
+  alternates: { canonical: "/signin" },
+};
+
+export default function SignInPage() {
+  return <SignInForm />;
+}
