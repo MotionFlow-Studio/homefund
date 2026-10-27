@@ -1,6 +1,6 @@
 # HomeFund
 
-A family budget web app. Set your payday and HomeFund shows how much money is left until the next payday and how much you can spend per day. Snap a receipt and it is cropped, read line by line and sorted into categories automatically.
+A family budget web app that installs on any phone like a native app. Set your payday and HomeFund shows how much money is left until the next payday and how much you can spend per day. Snap a receipt and it is cropped, read line by line and sorted into categories automatically.
 
 ## Features (in progress)
 
@@ -33,9 +33,17 @@ npm run dev
 
 Open http://localhost:3000.
 
+## Install on your phone
+
+HomeFund is a Progressive Web App.
+
+- **iPhone (Safari):** Share → Add to Home Screen
+- **Android (Chrome):** menu → Install app
+
 ## Roadmap
 
 - Supervised kids' accounts managed by parents
+- Native iOS and Android apps
 
 ## License
 
