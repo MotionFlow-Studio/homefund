@@ -1,6 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
+import { localDb } from "@/lib/local/db";
 import { CHANGED_EVENT, pendingChanges } from "@/lib/local/store";
 import { OfflineError, syncOnce } from "@/lib/local/sync";
 
@@ -34,6 +35,8 @@ export function requestSync(): Promise<void> {
   running = (async () => {
     do {
       again = false;
+      // Nothing to sync until someone is signed in on this device.
+      if (!(await localDb().meta.get("currentUser"))) break;
       if (typeof navigator !== "undefined" && !navigator.onLine) {
         setStatus({ state: "offline", pending: await pendingChanges() });
         break;
