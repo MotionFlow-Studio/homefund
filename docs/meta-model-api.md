@@ -14,7 +14,8 @@ with `test/fixtures/receipt-lidl-ro.jpg`.
 
 ```
 photo (browser, memory only)
-  -> POST /api/receipt/scan (our server)
+  -> shrink in the browser to max 2048 px, JPEG 85 (usually 0.5-2 MB)
+  -> POST /api/receipt/scan (our server, rejects anything over 10 MB)
   -> SAM 3.1: find the receipt, get its box
   -> crop to the box + 20 px, resize to max 1024 x 1600, JPEG 85
   -> Muse Spark 1.3: read items into a fixed JSON schema
@@ -75,7 +76,9 @@ groceries / household / kids) was exactly right with `low` effort.
 
 ## Limits
 
-- Images: JPEG, PNG, GIF, WebP; up to 50 MB inline, 50 images per request.
+- Meta accepts JPEG, PNG, GIF, WebP up to 50 MB; **HomeFund caps uploads at
+  10 MB** and shrinks photos in the browser first. Images are processed in
+  memory and never written to disk.
 - Rate limits (per team): Muse Spark 1.3 3,000 RPM; SAM 3.1 3,000 RPM.
 - No server timeout is documented; HomeFund aborts after 30 s and offers
   manual entry.
