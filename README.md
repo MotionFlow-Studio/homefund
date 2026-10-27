@@ -13,7 +13,11 @@ A family budget web app. Set your payday and HomeFund shows how much money is le
 
 ## Built during the hackathon
 
-Everything in this repository was built from scratch during the Meta Global AI Developer Hackathon (October 27 – November 4, 2026). No code existed before the event.
+Everything in this repository was built from scratch during the Meta Global AI Developer Hackathon (October 27 – November 4, 2026). The first commit is dated October 27, 2026.
+
+## Existing before the hackathon
+
+None. HomeFund uses no code, backend or assets created before the event.
 
 ## Tech stack
 
@@ -32,3 +36,7 @@ Open http://localhost:3000.
 ## Roadmap
 
 - Supervised kids' accounts managed by parents
+
+## License
+
+Copyright (c) 2026 MotionFlow Studio. All rights reserved. See [LICENSE](LICENSE).
