@@ -1,6 +1,7 @@
 "use client";
 
-import { CalendarDays, LogOut, Settings2 } from "lucide-react";
+import { CalendarDays, LogOut, Plus, Settings2 } from "lucide-react";
+import { useEffect, useState } from "react";
 import { Money } from "@/components/money";
 import { formatMoney } from "@/lib/money";
 
@@ -12,8 +13,10 @@ function fitSize(text: string, maxRem: number) {
   const width = text.length * 0.62 + 0.4;
   return `min(${maxRem}rem, calc(100cqw / ${width.toFixed(2)}))`;
 }
-import type { FixedCost, Household, Member, PaySettings } from "@/lib/model";
+import { undoExpense } from "@/lib/expenses";
+import type { Expense, FixedCost, Household, Member, PaySettings } from "@/lib/model";
 import { useBudget } from "@/lib/use-budget";
+import { AddExpense } from "./add-expense";
 
 type Props = {
   household: Household;
@@ -35,6 +38,15 @@ function paydayLabel(date: string) {
 
 export function Dashboard({ household, me, settings, fixedCosts, onEditPay, onSignOut, signingOut }: Props) {
   const budget = useBudget(me.id, settings, fixedCosts);
+  const [adding, setAdding] = useState(false);
+  const [lastSaved, setLastSaved] = useState<Expense | null>(null);
+
+  useEffect(() => {
+    if (!lastSaved) return;
+    const timer = window.setTimeout(() => setLastSaved(null), 6000);
+    return () => window.clearTimeout(timer);
+  }, [lastSaved]);
+
   if (!budget) {
     return <main className="flex flex-1 items-center justify-center opacity-60">Loading…</main>;
   }
@@ -50,8 +62,22 @@ export function Dashboard({ household, me, settings, fixedCosts, onEditPay, onSi
     .slice(0, 2)
     .toUpperCase();
 
+  if (adding) {
+    return (
+      <AddExpense
+        household={household}
+        me={me}
+        onClose={() => setAdding(false)}
+        onSaved={(expense) => {
+          setAdding(false);
+          setLastSaved(expense);
+        }}
+      />
+    );
+  }
+
   return (
-    <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-5 px-4 pb-10 pt-[max(1.5rem,env(safe-area-inset-top))]">
+    <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-5 px-4 pb-32 pt-[max(1.5rem,env(safe-area-inset-top))]">
       <header className="flex items-center justify-between gap-3">
         <div className="min-w-0">
           <p className="truncate text-sm opacity-70">{household.name}</p>
@@ -159,6 +185,34 @@ export function Dashboard({ household, me, settings, fixedCosts, onEditPay, onSi
           <p className="mt-4 text-sm opacity-80">Add your income under “Payday and costs” to see what you can spend.</p>
         ) : null}
       </section>
+      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-30 mx-auto flex max-w-md flex-col items-stretch gap-3 px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
+        {lastSaved ? (
+          <div
+            role="status"
+            className="pointer-events-auto flex items-center justify-between gap-3 rounded-2xl bg-neutral-900 px-4 py-3 text-sm text-white shadow-lg dark:bg-neutral-100 dark:text-neutral-900"
+          >
+            <span>Saved {money(lastSaved.amountMinor)}</span>
+            <button
+              type="button"
+              onClick={async () => {
+                const id = lastSaved.id;
+                setLastSaved(null);
+                await undoExpense(id);
+              }}
+              className="font-semibold text-accent"
+            >
+              Undo
+            </button>
+          </div>
+        ) : null}
+        <button
+          type="button"
+          onClick={() => setAdding(true)}
+          className="pointer-events-auto flex h-14 items-center justify-center gap-2 rounded-2xl bg-brand text-lg font-semibold text-white shadow-lg transition hover:bg-brand-strong active:scale-[0.98]"
+        >
+          <Plus size={22} aria-hidden /> Add expense
+        </button>
+      </div>
     </main>
   );
 }
