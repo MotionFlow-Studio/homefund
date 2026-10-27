@@ -17,10 +17,35 @@ export function isCurrency(value: unknown): value is Currency {
   return typeof value === "string" && CURRENCY_SET.has(value);
 }
 
-/** Number of decimals the currency uses: 2 for EUR, 0 for JPY, 3 for KWD. */
+/*
+ * Minor-unit exponents from the ISO 4217 list. Fixed here rather than read
+ * from the runtime, because browsers and Node disagree for some currencies
+ * (HUF, for example), and every device must store the same amount the same way.
+ */
+const ZERO_DECIMALS = new Set([
+  "BIF", "CLP", "DJF", "GNF", "ISK", "JPY", "KMF", "KRW", "PYG",
+  "RWF", "UGX", "UYI", "VND", "VUV", "XAF", "XOF", "XPF",
+]);
+const THREE_DECIMALS = new Set(["BHD", "IQD", "JOD", "KWD", "LYD", "OMR", "TND"]);
+const FOUR_DECIMALS = new Set(["CLF", "UYW"]);
+
+/** Number of decimals the currency uses (ISO 4217): 2 for EUR and HUF, 0 for JPY, 3 for KWD. */
 export function currencyDecimals(currency: Currency): number {
-  return new Intl.NumberFormat(DEFAULT_LOCALE, { style: "currency", currency })
-    .resolvedOptions().maximumFractionDigits ?? 2;
+  if (ZERO_DECIMALS.has(currency)) return 0;
+  if (THREE_DECIMALS.has(currency)) return 3;
+  if (FOUR_DECIMALS.has(currency)) return 4;
+  return 2;
+}
+
+function formatter(currency: Currency, locale: string) {
+  const decimals = currencyDecimals(currency);
+  return new Intl.NumberFormat(locale, {
+    style: "currency",
+    currency,
+    currencyDisplay: "narrowSymbol",
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  });
 }
 
 /**
@@ -57,15 +82,29 @@ export function fromMinor(minor: number, currency: Currency): number {
   return minor / 10 ** currencyDecimals(currency);
 }
 
-/** Formats for display: 4997 EUR -> "€49.97", 4997 HUF -> "Ft 49.97". */
+/** Formats for display: 4997 EUR -> "€49.97", 4997 HUF -> "Ft49.97". */
 export function formatMoney(
   minor: number,
   currency: Currency,
   locale: string = DEFAULT_LOCALE,
 ): string {
-  return new Intl.NumberFormat(locale, {
-    style: "currency",
-    currency,
-    currencyDisplay: "narrowSymbol",
-  }).format(fromMinor(minor, currency));
+  return formatter(currency, locale).format(fromMinor(minor, currency));
+}
+
+/** Formatted amount split into parts, so the symbol can be styled apart from the number. */
+export function formatMoneyParts(
+  minor: number,
+  currency: Currency,
+  locale: string = DEFAULT_LOCALE,
+): { type: "symbol" | "number"; value: string }[] {
+  const parts = formatter(currency, locale).formatToParts(fromMinor(minor, currency));
+
+  const out: { type: "symbol" | "number"; value: string }[] = [];
+  for (const part of parts) {
+    const type = part.type === "currency" ? "symbol" : "number";
+    const last = out.at(-1);
+    if (last && last.type === type) last.value += part.value;
+    else out.push({ type, value: part.value });
+  }
+  return out.map((p) => ({ ...p, value: p.type === "symbol" ? p.value.trim() : p.value }));
 }

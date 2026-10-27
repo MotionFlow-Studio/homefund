@@ -1,0 +1,164 @@
+"use client";
+
+import { CalendarDays, LogOut, Settings2 } from "lucide-react";
+import { Money } from "@/components/money";
+import { formatMoney } from "@/lib/money";
+
+/**
+ * Font size that keeps an amount on one line: as large as maxRem allows,
+ * smaller for long amounts, measured against the card width (container units).
+ */
+function fitSize(text: string, maxRem: number) {
+  const width = text.length * 0.62 + 0.4;
+  return `min(${maxRem}rem, calc(100cqw / ${width.toFixed(2)}))`;
+}
+import type { FixedCost, Household, Member, PaySettings } from "@/lib/model";
+import { useBudget } from "@/lib/use-budget";
+
+type Props = {
+  household: Household;
+  me: Member;
+  settings: PaySettings;
+  fixedCosts: FixedCost[];
+  onEditPay: () => void;
+  onSignOut: () => void;
+  signingOut: boolean;
+};
+
+function paydayLabel(date: string) {
+  return new Date(`${date}T00:00:00`).toLocaleDateString("en-GB", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+  });
+}
+
+export function Dashboard({ household, me, settings, fixedCosts, onEditPay, onSignOut, signingOut }: Props) {
+  const budget = useBudget(me.id, settings, fixedCosts);
+  if (!budget) {
+    return <main className="flex flex-1 items-center justify-center opacity-60">Loading…</main>;
+  }
+
+  const currency = household.currency;
+  const money = (minor: number) => formatMoney(minor, currency);
+  const spentShare =
+    budget.availableMinor > 0 ? Math.min(100, (budget.spentMinor / budget.availableMinor) * 100) : 100;
+  const initials = me.name
+    .split(/\s+/)
+    .map((w) => w[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+
+  return (
+    <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-5 px-4 pb-10 pt-[max(1.5rem,env(safe-area-inset-top))]">
+      <header className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <p className="truncate text-sm opacity-70">{household.name}</p>
+          <h1 className="truncate text-xl font-semibold">Hi {me.name.split(" ")[0]}</h1>
+        </div>
+        <details className="group relative">
+          <summary
+            aria-label="Account menu"
+            className="flex h-11 w-11 cursor-pointer list-none items-center justify-center rounded-full text-sm font-semibold text-white [&::-webkit-details-marker]:hidden"
+            style={{ backgroundColor: me.color }}
+          >
+            {initials}
+          </summary>
+          <div className="absolute right-0 z-10 mt-2 w-60 overflow-hidden rounded-2xl border border-black/10 bg-white shadow-lg dark:border-white/10 dark:bg-neutral-900">
+            <button
+              type="button"
+              onClick={onEditPay}
+              className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-black/5 dark:hover:bg-white/10"
+            >
+              <Settings2 size={18} /> Payday and costs
+            </button>
+            <button
+              type="button"
+              onClick={onSignOut}
+              disabled={signingOut}
+              className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-black/5 disabled:opacity-60 dark:hover:bg-white/10"
+            >
+              <LogOut size={18} /> {signingOut ? "Signing out…" : "Sign out"}
+            </button>
+          </div>
+        </details>
+      </header>
+
+      <section
+        aria-label="Your budget"
+        className={`rounded-[2rem] p-6 text-white shadow-sm [container-type:inline-size] ${
+          budget.overspent ? "bg-gradient-to-br from-red-600 to-red-700" : "bg-gradient-to-br from-brand to-brand-strong"
+        }`}
+      >
+        <p className="text-sm font-medium text-white/85">Left until payday</p>
+        <p
+          aria-live="polite"
+          className="mt-1 whitespace-nowrap font-bold leading-none tracking-tight"
+          style={{ fontSize: fitSize(money(budget.leftMinor), 3.75) }}
+        >
+          <Money minor={budget.leftMinor} currency={currency} />
+        </p>
+
+        <div className="mt-6 rounded-2xl bg-white/15 p-4 [container-type:inline-size]">
+          <p className="text-sm font-medium text-white/85">You can spend per day</p>
+          {budget.overspent ? (
+            <p className="mt-1 text-2xl font-bold">Over budget</p>
+          ) : (
+            <p
+              aria-live="polite"
+              className="mt-1 whitespace-nowrap font-bold leading-none tracking-tight"
+              style={{ fontSize: fitSize(money(budget.perDayMinor), 2.75) }}
+            >
+              <Money minor={budget.perDayMinor} currency={currency} />
+            </p>
+          )}
+        </div>
+
+        <p className="mt-5 flex items-center gap-2 text-base font-medium">
+          <CalendarDays size={18} aria-hidden />
+          <span>
+            <span className="tabular-nums">{budget.daysLeft}</span> {budget.daysLeft === 1 ? "day" : "days"} to payday
+            <span className="text-white/75"> · {paydayLabel(budget.nextPayday)}</span>
+          </span>
+        </p>
+      </section>
+
+      <section aria-label="This pay period" className="rounded-3xl border border-black/10 p-5 dark:border-white/10">
+        <div className="flex items-baseline justify-between gap-3">
+          <h2 className="font-semibold">This pay period</h2>
+          <p className="text-sm tabular-nums opacity-70">
+            {budget.availableMinor > 0 ? `${money(budget.spentMinor)} of ${money(budget.availableMinor)}` : money(budget.spentMinor)}
+          </p>
+        </div>
+        <div
+          className="mt-3 h-2.5 overflow-hidden rounded-full bg-black/10 dark:bg-white/10"
+          role="progressbar"
+          aria-label="Share of this period's budget spent"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={Math.round(spentShare)}
+        >
+          <div
+            className={`h-full rounded-full ${budget.overspent ? "bg-red-500" : "bg-brand"}`}
+            style={{ width: `${spentShare}%` }}
+          />
+        </div>
+
+        {budget.availableMinor < 0 ? (
+          <p role="alert" className="mt-4 rounded-xl bg-red-50 p-3 text-sm font-medium text-red-700 dark:bg-red-950/40 dark:text-red-300">
+            Your fixed costs and savings are {money(-budget.availableMinor)} more than your income. Check them under
+            “Payday and costs”.
+          </p>
+        ) : budget.overspent ? (
+          <p role="alert" className="mt-4 rounded-xl bg-red-50 p-3 text-sm font-medium text-red-700 dark:bg-red-950/40 dark:text-red-300">
+            You are {money(-budget.leftMinor)} over budget. Try to hold off on spending until{" "}
+            {paydayLabel(budget.nextPayday)}.
+          </p>
+        ) : budget.availableMinor === 0 ? (
+          <p className="mt-4 text-sm opacity-80">Add your income under “Payday and costs” to see what you can spend.</p>
+        ) : null}
+      </section>
+    </main>
+  );
+}

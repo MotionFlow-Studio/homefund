@@ -54,3 +54,23 @@ describe("fromMinor and formatMoney", () => {
     expect(formatMoney(50, "JPY")).toContain("50");
   });
 });
+
+describe("formatMoneyParts", () => {
+  it("separates the symbol from the number", async () => {
+    const parts = (await import("@/lib/money")).formatMoneyParts;
+    expect(parts(4997, "EUR")).toEqual([{ type: "symbol", value: "€" }, { type: "number", value: "49.97" }]);
+    expect(parts(-4997, "EUR").map((p) => p.value).join("")).toBe("-€49.97");
+  });
+});
+
+describe("currency decimals are the same everywhere", () => {
+  it("follows ISO 4217, not the runtime", () => {
+    expect(currencyDecimals("HUF")).toBe(2);
+    expect(currencyDecimals("RON")).toBe(2);
+    expect(currencyDecimals("ISK")).toBe(0);
+    expect(currencyDecimals("KRW")).toBe(0);
+    expect(currencyDecimals("BHD")).toBe(3);
+    expect(toMinor("49,97", "HUF")).toBe(4997);
+    expect(formatMoney(4997, "HUF")).toContain("49.97");
+  });
+});
