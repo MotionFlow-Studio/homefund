@@ -133,7 +133,11 @@ function Dashboard({
         <div className="mt-5 grid grid-cols-2 gap-4">
           <div>
             <p className="text-sm opacity-80">Per day</p>
-            <p className="text-2xl font-semibold tabular-nums">{money(budget.perDayMinor)}</p>
+            {budget.overspent ? (
+              <p className="text-lg font-semibold text-red-600 dark:text-red-400">Over budget</p>
+            ) : (
+              <p className="text-2xl font-semibold tabular-nums">{money(budget.perDayMinor)}</p>
+            )}
           </div>
           <div>
             <p className="text-sm opacity-80">Days to payday</p>
@@ -156,8 +160,23 @@ function Dashboard({
           />
         </div>
         <p className="mt-2 text-sm opacity-70">
-          {money(budget.spentMinor)} spent of {money(budget.availableMinor)}
+          {budget.availableMinor > 0
+            ? `${money(budget.spentMinor)} spent of ${money(budget.availableMinor)}`
+            : `${money(budget.spentMinor)} spent`}
         </p>
+        {budget.availableMinor < 0 ? (
+          <p role="alert" className="mt-4 rounded-xl bg-white/70 p-3 text-sm font-medium text-red-700 dark:bg-black/30 dark:text-red-300">
+            Your fixed costs and savings are {money(-budget.availableMinor)} more than your income. Check them with
+            “Edit payday and costs”.
+          </p>
+        ) : budget.overspent ? (
+          <p role="alert" className="mt-4 rounded-xl bg-white/70 p-3 text-sm font-medium text-red-700 dark:bg-black/30 dark:text-red-300">
+            You are {money(-budget.leftMinor)} over budget for this pay period. Try to hold off on spending until{" "}
+            {new Date(`${budget.nextPayday}T00:00:00`).toLocaleDateString("en-GB", { day: "numeric", month: "long" })}.
+          </p>
+        ) : budget.availableMinor === 0 ? (
+          <p className="mt-4 text-sm opacity-80">Add your income to see what you can spend.</p>
+        ) : null}
       </section>
       <Button variant="secondary" onClick={onEditPay}>
         Edit payday and costs
