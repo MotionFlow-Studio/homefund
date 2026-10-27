@@ -12,6 +12,8 @@
     "db:migrate": "drizzle-kit migrate"
   },
   "dependencies": {
+    "dexie": "^4.4.7",
+    "dexie-react-hooks": "^4.4.0",
     "drizzle-orm": "^0.45.4",
     "lucide-react": "^1.62.0",
     "mysql2": "^3.24.6",
@@ -28,6 +30,7 @@
     "drizzle-kit": "^0.31.11",
     "eslint": "^9",
     "eslint-config-next": "16.4.3",
+    "fake-indexeddb": "^6.2.6",
     "tailwindcss": "^4",
     "typescript": "^5",
     "vitest": "^5.0.5"
