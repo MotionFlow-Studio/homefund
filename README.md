@@ -9,7 +9,7 @@ A family budget web app that installs on any phone like a native app. Set your p
 - Receipt scanning with SAM 3.1 and Muse Spark 1.3 (Meta Model API)
 - Voice expense entry with Muse Voice Transcribe
 - Shared household with a budget per member
-- Currencies: EUR, RON, HUF
+- Every currency (EUR, USD, GBP, HUF, RON and all other ISO 4217 currencies)
 
 ## Built during the hackathon
 

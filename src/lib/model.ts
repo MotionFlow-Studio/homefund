@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { CATEGORY_IDS } from "@/lib/categories";
-import { CURRENCIES } from "@/lib/money";
+import { isCurrency } from "@/lib/money";
 
 /*
  * The shared data model. The same shapes are used in the browser, in API
@@ -11,8 +11,8 @@ import { CURRENCIES } from "@/lib/money";
 export const MEMBER_ROLES = ["owner", "adult", "child"] as const;
 export const EXPENSE_SOURCES = ["manual", "receipt", "voice"] as const;
 
-/** Largest amount accepted anywhere: 100 million in major units. */
-const MAX_MINOR = 100_000_000 * 100;
+/** Largest amount accepted anywhere, in the smallest unit. */
+const MAX_MINOR = Number.MAX_SAFE_INTEGER;
 
 const uuid = z.uuid();
 const isoTimestamp = z.iso.datetime({ offset: true });
@@ -30,7 +30,7 @@ const syncFields = {
 export const householdSchema = z.object({
   id: uuid,
   name: text(80),
-  currency: z.enum(CURRENCIES),
+  currency: z.string().refine(isCurrency, "Unknown currency"),
   ...syncFields,
 });
 
@@ -82,7 +82,10 @@ export const receiptItemSchema = z.object({
   position: z.number().int().min(0).max(500),
   name: text(120),
   quantityMilli: z.number().int().min(1).max(1_000_000),
-  unitPriceMinor: minorAmount.nullable(),
+  unitPrice: z
+    .string()
+    .regex(/^\d{1,13}(\.\d{1,6})?$/)
+    .nullable(),
   lineTotalMinor: minorAmount,
   category: z.enum(CATEGORY_IDS),
   ...syncFields,

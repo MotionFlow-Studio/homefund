@@ -1,31 +1,56 @@
 import { describe, expect, it } from "vitest";
-import { formatMoney, fromMinor, toMinor } from "@/lib/money";
+import {
+  CURRENCIES,
+  currencyDecimals,
+  formatMoney,
+  fromMinor,
+  isCurrency,
+  toMinor,
+} from "@/lib/money";
+
+describe("currencies", () => {
+  it("supports every ISO currency", () => {
+    expect(CURRENCIES.length).toBeGreaterThan(100);
+    for (const code of ["EUR", "USD", "GBP", "HUF", "RON", "PLN", "CHF", "JPY", "KWD"]) {
+      expect(isCurrency(code)).toBe(true);
+    }
+    expect(isCurrency("XYZ1")).toBe(false);
+  });
+
+  it("knows each currency's decimals", () => {
+    expect(currencyDecimals("EUR")).toBe(2);
+    expect(currencyDecimals("JPY")).toBe(0);
+    expect(currencyDecimals("KWD")).toBe(3);
+  });
+});
 
 describe("toMinor", () => {
-  it("converts numbers and strings to minor units", () => {
-    expect(toMinor(12.5)).toBe(1250);
-    expect(toMinor("12,50")).toBe(1250);
-    expect(toMinor("4 500")).toBe(450000);
-    expect(toMinor(0.1 + 0.2)).toBe(30);
+  it("keeps decimals exactly, with no rounding", () => {
+    expect(toMinor("49.97", "EUR")).toBe(4997);
+    expect(toMinor("49,97", "HUF")).toBe(4997);
+    expect(toMinor(49.97, "USD")).toBe(4997);
+    expect(toMinor("0.01", "EUR")).toBe(1);
+    expect(toMinor("1 234.5", "EUR")).toBe(123450);
+    expect(toMinor("12", "EUR")).toBe(1200);
+    expect(toMinor("49.970", "KWD")).toBe(49970);
+    expect(toMinor("50", "JPY")).toBe(50);
   });
 
-  it("rejects invalid input", () => {
-    expect(() => toMinor("abc")).toThrow();
+  it("rejects invalid input and too many decimals", () => {
+    expect(() => toMinor("abc", "EUR")).toThrow();
+    expect(() => toMinor("49.975", "EUR")).toThrow();
+    expect(() => toMinor("49.5", "JPY")).toThrow();
   });
 });
 
-describe("fromMinor", () => {
-  it("converts minor units back to major units", () => {
-    expect(fromMinor(1250)).toBe(12.5);
-  });
-});
-
-describe("formatMoney", () => {
-  it("formats each currency for its locale", () => {
-    expect(formatMoney(1250, "EUR")).toContain("12.50");
-    expect(formatMoney(1250, "RON")).toContain("12,50");
-    const huf = formatMoney(450000, "HUF");
-    expect(huf).toContain("Ft");
-    expect(huf).not.toContain(",");
+describe("fromMinor and formatMoney", () => {
+  it("round-trips 49.97 without loss", () => {
+    expect(fromMinor(toMinor("49.97", "EUR"), "EUR")).toBe(49.97);
+    expect(formatMoney(4997, "EUR")).toBe("€49.97");
+    expect(formatMoney(4997, "USD")).toBe("$49.97");
+    expect(formatMoney(4997, "HUF")).toContain("49.97");
+    expect(formatMoney(4997, "RON")).toContain("49.97");
+    expect(formatMoney(49970, "KWD")).toContain("49.970");
+    expect(formatMoney(50, "JPY")).toContain("50");
   });
 });

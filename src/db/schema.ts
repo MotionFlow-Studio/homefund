@@ -1,6 +1,8 @@
 import {
   bigint,
+  char,
   date,
+  decimal,
   index,
   int,
   mysqlEnum,
@@ -11,14 +13,14 @@ import {
   varchar,
 } from "drizzle-orm/mysql-core";
 import { CATEGORY_IDS } from "@/lib/categories";
-import { CURRENCIES } from "@/lib/money";
 import { EXPENSE_SOURCES, MEMBER_ROLES } from "@/lib/model";
 
 /*
  * Conventions
  * - IDs are UUID strings created by the client, so records can be made offline
  *   and synced later without ID clashes.
- * - Amounts are integers in the minor unit (cent, ban, filler).
+ * - Amounts are integers in the currency's smallest unit, exact to the last
+ *   decimal: 49.97 EUR is stored as 4997.
  * - The currency lives on the household; every amount in it uses that currency.
  * - Timestamps are always set by the app, never by the database, so the time
  *   a change was made on a device survives sync.
@@ -48,7 +50,8 @@ export const users = mysqlTable(
 export const households = mysqlTable("households", {
   id: id().primaryKey(),
   name: varchar("name", { length: 80 }).notNull(),
-  currency: mysqlEnum("currency", CURRENCIES).notNull(),
+  /** ISO 4217 code, e.g. EUR, USD, HUF. */
+  currency: char("currency", { length: 3 }).notNull(),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
   deletedAt: deletedAt(),
@@ -147,7 +150,8 @@ export const receiptItems = mysqlTable(
     name: varchar("name", { length: 120 }).notNull(),
     /** Quantity in thousandths, so 1.5 kg -> 1500. */
     quantityMilli: int("quantity_milli").notNull().default(1000),
-    unitPriceMinor: money("unit_price_minor"),
+    /** Unit price as printed, e.g. fuel at 1.459 per litre. Exact decimal. */
+    unitPrice: decimal("unit_price", { precision: 19, scale: 6 }),
     lineTotalMinor: money("line_total_minor").notNull(),
     category: mysqlEnum("category", CATEGORY_IDS).notNull(),
     createdAt: createdAt(),

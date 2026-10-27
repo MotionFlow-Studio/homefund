@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "mysql",
-  "id": "5fd7b947-5c1a-47b3-9cce-8723ba04a150",
+  "id": "16545783-281c-49b7-922e-a5606799943e",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "expenses": {
@@ -285,7 +285,7 @@
         },
         "currency": {
           "name": "currency",
-          "type": "enum('EUR','RON','HUF')",
+          "type": "char(3)",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
@@ -568,9 +568,9 @@
           "autoincrement": false,
           "default": 1000
         },
-        "unit_price_minor": {
-          "name": "unit_price_minor",
-          "type": "bigint",
+        "unit_price": {
+          "name": "unit_price",
+          "type": "decimal(19,6)",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false

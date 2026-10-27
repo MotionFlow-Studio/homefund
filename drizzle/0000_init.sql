@@ -29,7 +29,7 @@ CREATE TABLE `fixed_costs` (
 CREATE TABLE `households` (
 	`id` varchar(36) NOT NULL,
 	`name` varchar(80) NOT NULL,
-	`currency` enum('EUR','RON','HUF') NOT NULL,
+	`currency` char(3) NOT NULL,
 	`created_at` timestamp(3) NOT NULL,
 	`updated_at` timestamp(3) NOT NULL,
 	`deleted_at` timestamp(3),
@@ -67,7 +67,7 @@ CREATE TABLE `receipt_items` (
 	`position` int NOT NULL,
 	`name` varchar(120) NOT NULL,
 	`quantity_milli` int NOT NULL DEFAULT 1000,
-	`unit_price_minor` bigint,
+	`unit_price` decimal(19,6),
 	`line_total_minor` bigint NOT NULL,
 	`category` enum('groceries','household','eating_out','transport','kids','health','clothing','fun','bills','other') NOT NULL,
 	`created_at` timestamp(3) NOT NULL,
