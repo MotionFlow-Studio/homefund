@@ -1,7 +1,10 @@
 "use client";
 
 import { CalendarDays, LogOut, Plus, Settings2 } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useState } from "react";
+import { CategoryBadge } from "@/components/category-badge";
+import { getCategory } from "@/lib/categories";
 import { Money } from "@/components/money";
 import { formatMoney } from "@/lib/money";
 
@@ -13,10 +16,10 @@ function fitSize(text: string, maxRem: number) {
   const width = text.length * 0.62 + 0.4;
   return `min(${maxRem}rem, calc(100cqw / ${width.toFixed(2)}))`;
 }
-import { undoExpense } from "@/lib/expenses";
+import { removeExpense, useHouseholdExpenses } from "@/lib/expenses";
 import type { Expense, FixedCost, Household, Member, PaySettings } from "@/lib/model";
 import { useBudget } from "@/lib/use-budget";
-import { AddExpense } from "./add-expense";
+import { ExpenseForm } from "./expense-form";
 
 type Props = {
   household: Household;
@@ -39,6 +42,7 @@ function paydayLabel(date: string) {
 export function Dashboard({ household, me, settings, fixedCosts, onEditPay, onSignOut, signingOut }: Props) {
   const budget = useBudget(me.id, settings, fixedCosts);
   const [adding, setAdding] = useState(false);
+  const recent = (useHouseholdExpenses(household.id) ?? []).slice(0, 5);
   const [lastSaved, setLastSaved] = useState<Expense | null>(null);
 
   useEffect(() => {
@@ -64,7 +68,7 @@ export function Dashboard({ household, me, settings, fixedCosts, onEditPay, onSi
 
   if (adding) {
     return (
-      <AddExpense
+      <ExpenseForm
         household={household}
         me={me}
         onClose={() => setAdding(false)}
@@ -185,6 +189,28 @@ export function Dashboard({ household, me, settings, fixedCosts, onEditPay, onSi
           <p className="mt-4 text-sm opacity-80">Add your income under “Payday and costs” to see what you can spend.</p>
         ) : null}
       </section>
+      <section aria-label="Recent expenses" className="rounded-3xl border border-black/10 p-5 dark:border-white/10">
+        <div className="flex items-baseline justify-between">
+          <h2 className="font-semibold">Recent expenses</h2>
+          <Link href="/app/expenses" className="text-sm font-semibold text-brand">
+            See all
+          </Link>
+        </div>
+        {recent.length === 0 ? (
+          <p className="mt-3 text-sm opacity-70">Nothing yet. Tap “Add expense” to record your first one.</p>
+        ) : (
+          <ul className="mt-3 flex flex-col gap-1">
+            {recent.map((e) => (
+              <li key={e.id} className="flex items-center gap-3 py-1.5">
+                <CategoryBadge category={e.category} showLabel={false} size="sm" />
+                <span className="min-w-0 flex-1 truncate">{e.note || e.merchant || getCategory(e.category).label}</span>
+                <span className="shrink-0 font-medium tabular-nums">{money(e.amountMinor)}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
       <div className="pointer-events-none fixed inset-x-0 bottom-0 z-30 mx-auto flex max-w-md flex-col items-stretch gap-3 px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
         {lastSaved ? (
           <div
@@ -197,7 +223,7 @@ export function Dashboard({ household, me, settings, fixedCosts, onEditPay, onSi
               onClick={async () => {
                 const id = lastSaved.id;
                 setLastSaved(null);
-                await undoExpense(id);
+                await removeExpense(id);
               }}
               className="font-semibold text-accent"
             >

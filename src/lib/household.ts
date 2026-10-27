@@ -15,14 +15,16 @@ export type HouseholdState =
 /** The signed-in user's household, read live from the device. */
 export function useMyHousehold(userId: string): HouseholdState {
   const result = useLiveQuery(async () => {
+    if (!userId) return { userId, state: { status: "loading" } as HouseholdState };
     const db = localDb();
     const me = (await db.members.where("userId").equals(userId).toArray()).find((m) => m.deletedAt === null);
-    if (!me) return { status: "none" } as const;
-    const household = await db.households.get(me.householdId);
-    if (!household || household.deletedAt !== null) return { status: "none" } as const;
-    return { status: "ready", household, me } as const;
+    const household = me ? await db.households.get(me.householdId) : undefined;
+    const state: HouseholdState =
+      me && household && household.deletedAt === null ? { status: "ready", household, me } : { status: "none" };
+    return { userId, state };
   }, [userId]);
-  return result ?? { status: "loading" };
+  // While the query re-runs for a new user, the previous answer must not be used.
+  return result && result.userId === userId ? result.state : { status: "loading" };
 }
 
 /** Creates a household with the user as its owner, on the device first. */

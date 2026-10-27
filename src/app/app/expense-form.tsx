@@ -1,39 +1,45 @@
 "use client";
 
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { addDays, localToday } from "@/lib/budget";
 import { CATEGORY_LIST, type CategoryId } from "@/lib/categories";
-import { addManualExpense } from "@/lib/expenses";
-import { currencyDecimals, toMinor } from "@/lib/money";
+import { addManualExpense, updateExpense } from "@/lib/expenses";
+import { currencyDecimals, fromMinor, toMinor } from "@/lib/money";
 import type { Expense, Household, Member } from "@/lib/model";
 
 type Props = {
   household: Household;
   me: Member;
+  /** Household members; a member picker is shown when there is more than one. */
+  members?: Member[];
+  /** When given, the form edits this expense instead of adding a new one. */
+  expense?: Expense;
   onClose: () => void;
   onSaved: (expense: Expense) => void;
+  onDelete?: (expense: Expense) => void;
 };
 
-export function AddExpense({ household, me, onClose, onSaved }: Props) {
+export function ExpenseForm({ household, me, members = [], expense, onClose, onSaved, onDelete }: Props) {
   const today = localToday();
   const yesterday = addDays(today, -1);
-  const [amount, setAmount] = useState("");
-  const [category, setCategory] = useState<CategoryId | null>(null);
-  const [spentOn, setSpentOn] = useState(today);
-  const [note, setNote] = useState("");
-  const [showNote, setShowNote] = useState(false);
+  const [amount, setAmount] = useState(() => (expense ? String(fromMinor(expense.amountMinor, household.currency)) : ""));
+  const [category, setCategory] = useState<CategoryId | null>(expense?.category ?? null);
+  const [spentOn, setSpentOn] = useState(expense?.spentOn ?? today);
+  const [memberId, setMemberId] = useState(expense?.memberId ?? me.id);
+  const [note, setNote] = useState(expense?.note ?? "");
+  const [showNote, setShowNote] = useState(Boolean(expense?.note));
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const amountRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    amountRef.current?.focus();
+    if (!expense) amountRef.current?.focus();
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  }, [onClose, expense]);
 
   const decimals = currencyDecimals(household.currency);
 
@@ -65,16 +71,18 @@ export function AddExpense({ household, me, onClose, onSaved }: Props) {
     }
     setError(null);
     setSaving(true);
-    const expense = await addManualExpense({
-      householdId: household.id,
-      memberId: me.id,
-      userId: me.userId,
-      amountMinor,
-      category,
-      spentOn,
-      note,
-    });
-    onSaved(expense);
+    const saved = expense
+      ? await updateExpense(expense, { amountMinor, category, spentOn, note, memberId })
+      : await addManualExpense({
+          householdId: household.id,
+          memberId,
+          userId: me.userId,
+          amountMinor,
+          category,
+          spentOn,
+          note,
+        });
+    onSaved(saved);
   }
 
   const dateChip = (value: string, label: string) => (
@@ -113,9 +121,19 @@ export function AddExpense({ household, me, onClose, onSaved }: Props) {
           >
             <ArrowLeft size={22} />
           </button>
-          <h1 id="add-expense-title" className="text-lg font-semibold">
-            Add expense
+          <h1 id="add-expense-title" className="flex-1 text-lg font-semibold">
+            {expense ? "Edit expense" : "Add expense"}
           </h1>
+          {expense && onDelete ? (
+            <button
+              type="button"
+              onClick={() => onDelete(expense)}
+              aria-label="Delete expense"
+              className="flex h-11 w-11 items-center justify-center rounded-full text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/40"
+            >
+              <Trash2 size={20} />
+            </button>
+          ) : null}
         </header>
 
         <label className="flex flex-col items-center gap-2 py-2">
@@ -188,6 +206,28 @@ export function AddExpense({ household, me, onClose, onSaved }: Props) {
           </div>
         </fieldset>
 
+        {members.length > 1 ? (
+          <fieldset>
+            <legend className="mb-3 text-sm font-medium">Who spent it</legend>
+            <div className="flex flex-wrap gap-2">
+              {members.map((m) => (
+                <button
+                  key={m.id}
+                  type="button"
+                  onClick={() => setMemberId(m.id)}
+                  aria-pressed={memberId === m.id}
+                  className={`flex h-10 items-center gap-2 rounded-full border pl-1 pr-4 text-sm font-medium transition ${
+                    memberId === m.id ? "border-brand bg-brand/10" : "border-black/15 dark:border-white/15"
+                  }`}
+                >
+                  <span className="h-8 w-8 rounded-full" style={{ backgroundColor: m.color }} aria-hidden />
+                  {m.name.split(" ")[0]}
+                </button>
+              ))}
+            </div>
+          </fieldset>
+        ) : null}
+
         {showNote ? (
           <label className="flex flex-col gap-1.5">
             <span className="text-sm font-medium">Note</span>
@@ -196,7 +236,7 @@ export function AddExpense({ household, me, onClose, onSaved }: Props) {
               onChange={(e) => setNote(e.target.value)}
               maxLength={280}
               placeholder="What was it for?"
-              autoFocus
+              autoFocus={!expense}
               className="h-12 rounded-xl border border-black/15 bg-white px-4 outline-none focus:border-brand focus:ring-4 focus:ring-brand/15 dark:border-white/15 dark:bg-white/5"
             />
           </label>
@@ -213,7 +253,7 @@ export function AddExpense({ household, me, onClose, onSaved }: Props) {
             </p>
           ) : null}
           <Button type="submit" loading={saving}>
-            Save expense
+            {expense ? "Save changes" : "Save expense"}
           </Button>
         </div>
       </form>
