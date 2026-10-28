@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, ChartPie, Receipt } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect } from "react";
@@ -13,6 +13,7 @@ import { formatMoney } from "@/lib/money";
 import type { Household, Member } from "@/lib/model";
 import { useMemberDetail } from "@/lib/use-budget";
 import { MemberBudgetCard, paydayLabel } from "../member-budget-card";
+import { EmptyState, LoadingScreen } from "@/components/loading";
 
 const ROLE_LABEL: Record<Member["role"], string> = { owner: "Set up the household", adult: "Adult", child: "Child" };
 
@@ -28,7 +29,7 @@ export function MemberScreen() {
   }, [auth.status, household.status, router]);
 
   if (auth.status !== "signed_in" || household.status !== "ready") {
-    return <main className="flex flex-1 items-center justify-center opacity-60">Loading…</main>;
+    return <LoadingScreen />;
   }
   return <MemberDetails household={household.household} me={household.me} memberId={memberId} />;
 }
@@ -56,7 +57,7 @@ function MemberDetails({ household, me, memberId }: { household: Household; me: 
 
   // While switching between members the previous answer may still be in hand.
   if (detail === undefined || (detail && detail.entry.member.id !== memberId)) {
-    return <main className="flex flex-1 items-center justify-center opacity-60">Loading…</main>;
+    return <LoadingScreen />;
   }
   if (detail === null) {
     return (
@@ -108,7 +109,9 @@ function MemberDetails({ household, me, memberId }: { household: Household; me: 
           <span className="text-sm tabular-nums opacity-70">{money(periodTotal)}</span>
         </div>
         {byCategory.length === 0 ? (
-          <p className="mt-3 text-sm opacity-70">No spending yet.</p>
+          <EmptyState compact icon={<ChartPie size={20} />}>
+            {isMe ? "Nothing spent yet in this period." : `${member.name.split(" ")[0]} has not spent anything yet in this period.`}
+          </EmptyState>
         ) : (
           <ul className="mt-4 flex flex-col gap-3">
             {byCategory.map(({ category, amountMinor }) => {
@@ -149,7 +152,9 @@ function MemberDetails({ household, me, memberId }: { household: Household; me: 
           ) : null}
         </div>
         {recent.length === 0 ? (
-          <p className="mt-3 text-sm opacity-70">No expenses yet.</p>
+          <EmptyState compact icon={<Receipt size={20} />}>
+            No expenses recorded yet.
+          </EmptyState>
         ) : (
           <ul className="mt-3 flex flex-col gap-1">
             {recent.map((e) => (

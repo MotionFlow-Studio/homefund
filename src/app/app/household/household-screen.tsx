@@ -19,6 +19,7 @@ import {
   type NewInvite,
 } from "@/lib/invites";
 import type { Household, Member } from "@/lib/model";
+import { LoadingScreen } from "@/components/loading";
 
 export function HouseholdScreen() {
   const router = useRouter();
@@ -31,7 +32,7 @@ export function HouseholdScreen() {
   }, [auth.status, household.status, router]);
 
   if (auth.status !== "signed_in" || household.status !== "ready") {
-    return <main className="flex flex-1 items-center justify-center opacity-60">Loading…</main>;
+    return <LoadingScreen />;
   }
   return <Family household={household.household} me={household.me} />;
 }
@@ -87,6 +88,9 @@ function Family({ household, me }: { household: Household; me: Member }) {
             </li>
           ))}
         </ul>
+        {members.length === 1 && me.role === "owner" ? (
+          <p className="mt-2 text-sm opacity-70">Just you so far. Invite your partner below to budget together.</p>
+        ) : null}
       </section>
 
       {me.role === "owner" ? (

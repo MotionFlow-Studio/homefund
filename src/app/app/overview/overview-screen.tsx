@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, ChartPie } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
@@ -15,6 +15,7 @@ import { formatMoney } from "@/lib/money";
 import type { Household, Member } from "@/lib/model";
 import { useHouseholdOverview } from "@/lib/use-budget";
 import { MemberBudgetCard } from "../member-budget-card";
+import { EmptyState, LoadingScreen } from "@/components/loading";
 
 export function OverviewScreen() {
   const router = useRouter();
@@ -27,7 +28,7 @@ export function OverviewScreen() {
   }, [auth.status, household.status, router]);
 
   if (auth.status !== "signed_in" || household.status !== "ready") {
-    return <main className="flex flex-1 items-center justify-center opacity-60">Loading…</main>;
+    return <LoadingScreen />;
   }
   return <Overview household={household.household} me={household.me} />;
 }
@@ -37,7 +38,7 @@ function Overview({ household, me }: { household: Household; me: Member }) {
   const currency = household.currency;
   const money = (minor: number) => formatMoney(minor, currency);
 
-  if (!overview) return <main className="flex flex-1 items-center justify-center opacity-60">Loading…</main>;
+  if (!overview) return <LoadingScreen />;
 
   const totals = householdTotals(overview.budgets);
   const today = localToday();
@@ -114,7 +115,9 @@ function Overview({ household, me }: { household: Household; me: Member }) {
           <span className="text-sm tabular-nums opacity-70">{money(overview.monthSpentMinor)}</span>
         </div>
         {overview.monthByCategory.length === 0 ? (
-          <p className="mt-3 text-sm opacity-70">No spending this month yet.</p>
+          <EmptyState compact icon={<ChartPie size={20} />}>
+            No spending this month yet. Each category shows up here as the family records expenses.
+          </EmptyState>
         ) : (
           <ul className="mt-4 flex flex-col gap-3">
             {overview.monthByCategory.map(({ category, amountMinor }) => {

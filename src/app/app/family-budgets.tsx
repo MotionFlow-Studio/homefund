@@ -1,5 +1,6 @@
 "use client";
 
+import { UserPlus } from "lucide-react";
 import Link from "next/link";
 import { formatMoney } from "@/lib/money";
 import type { Household, Member } from "@/lib/model";
@@ -11,7 +12,25 @@ import { useFamilyBudgets } from "@/lib/use-budget";
  */
 export function FamilyBudgets({ household, me }: { household: Household; me: Member }) {
   const budgets = useFamilyBudgets(household.id, me.id);
-  if (!budgets || budgets.length < 2) return null;
+  if (!budgets) return null;
+  if (budgets.length < 2) {
+    // Alone in the household: point the owner to inviting their partner.
+    if (me.role !== "owner") return null;
+    return (
+      <Link
+        href="/app/household"
+        className="flex items-center gap-4 rounded-3xl border border-dashed border-brand/40 p-5 transition hover:bg-brand/5"
+      >
+        <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-brand/10 text-brand" aria-hidden>
+          <UserPlus size={22} />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block font-semibold">Budget together</span>
+          <span className="block text-sm opacity-70">Invite your partner to see each other&apos;s numbers.</span>
+        </span>
+      </Link>
+    );
+  }
   const money = (minor: number) => formatMoney(minor, household.currency);
 
   return (

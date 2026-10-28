@@ -17,6 +17,7 @@ import { currencyDecimals, formatMoney } from "@/lib/money";
 import type { Household, Member } from "@/lib/model";
 import { usePaySettings } from "@/lib/pay-settings";
 import { ordinal, PaySetup } from "../pay-setup";
+import { LoadingScreen } from "@/components/loading";
 
 export function SettingsScreen() {
   const router = useRouter();
@@ -29,7 +30,7 @@ export function SettingsScreen() {
   }, [auth.status, household.status, router]);
 
   if (auth.status !== "signed_in" || household.status !== "ready") {
-    return <main className="flex flex-1 items-center justify-center opacity-60">Loading…</main>;
+    return <LoadingScreen />;
   }
   return <Settings user={auth.user} household={household.household} me={household.me} />;
 }

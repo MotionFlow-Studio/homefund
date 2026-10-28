@@ -13,6 +13,7 @@ import { RETRY_SAME_PHOTO, SCAN_ERROR_TEXT, scanReceiptPhoto, type ScanFailure }
 import { ExpenseForm } from "../expense-form";
 import { Camera } from "./camera";
 import { ReceiptReview } from "./receipt-review";
+import { LoadingScreen } from "@/components/loading";
 
 export function ScanScreen() {
   const router = useRouter();
@@ -25,7 +26,7 @@ export function ScanScreen() {
   }, [auth.status, household.status, router]);
 
   if (auth.status !== "signed_in" || household.status !== "ready") {
-    return <main className="flex flex-1 items-center justify-center opacity-60">Loading…</main>;
+    return <LoadingScreen />;
   }
   return <ScanFlow household={household.household} me={household.me} />;
 }

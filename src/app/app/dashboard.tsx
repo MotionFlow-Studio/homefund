@@ -13,6 +13,7 @@ import type { Expense, FixedCost, Household, Member, PaySettings } from "@/lib/m
 import { useBudget } from "@/lib/use-budget";
 import { ExpenseForm } from "./expense-form";
 import { FamilyBudgets } from "./family-budgets";
+import { EmptyState, HomeSkeleton } from "@/components/loading";
 
 type Props = {
   household: Household;
@@ -68,7 +69,7 @@ export function Dashboard({ household, me, settings, fixedCosts, onSignOut, sign
   }, [lastSaved]);
 
   if (!budget) {
-    return <main className="flex flex-1 items-center justify-center opacity-60">Loading…</main>;
+    return <HomeSkeleton />;
   }
 
   const currency = household.currency;
@@ -242,10 +243,9 @@ export function Dashboard({ household, me, settings, fixedCosts, onSignOut, sign
           </Link>
         </div>
         {recent.length === 0 ? (
-          <div className="mt-4 flex flex-col items-center gap-2 rounded-2xl bg-black/[0.03] px-4 py-6 text-center dark:bg-white/[0.04]">
-            <Receipt size={28} aria-hidden className="text-brand" />
-            <p className="text-sm opacity-75">Nothing yet. Scan a receipt or add an expense to record your first one.</p>
-          </div>
+          <EmptyState compact icon={<Receipt size={20} />}>
+            Nothing yet. Scan a receipt or add an expense with the buttons below, and it shows up here.
+          </EmptyState>
         ) : (
           <ul className="mt-2 flex flex-col">
             {recent.map((e) => {

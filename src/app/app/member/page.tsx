@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { MemberScreen } from "./member-screen";
+import { LoadingScreen } from "@/components/loading";
 
 export const metadata: Metadata = {
   title: "Family member",
@@ -9,7 +10,7 @@ export const metadata: Metadata = {
 
 export default function MemberPage() {
   return (
-    <Suspense fallback={<main className="flex flex-1 items-center justify-center opacity-60">Loading…</main>}>
+    <Suspense fallback={<LoadingScreen />}>
       <MemberScreen />
     </Suspense>
   );

@@ -6,6 +6,7 @@ import { AuthCard } from "@/components/auth-card";
 import { useCurrentUser } from "@/lib/auth-client";
 import { useMyHousehold } from "@/lib/household";
 import { JoinHousehold } from "../app/join-household";
+import { LoadingScreen } from "@/components/loading";
 
 /** Opened from an invite link: /join?code=K7XQM3PA. */
 export function JoinScreen() {
@@ -16,7 +17,7 @@ export function JoinScreen() {
   const back = encodeURIComponent(`/join?code=${encodeURIComponent(code)}`);
 
   if (auth.status === "loading" || (auth.status === "signed_in" && household.status === "loading")) {
-    return <main className="flex flex-1 items-center justify-center opacity-60">Loading…</main>;
+    return <LoadingScreen />;
   }
 
   if (auth.status === "signed_out") {

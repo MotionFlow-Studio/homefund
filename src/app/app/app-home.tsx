@@ -10,6 +10,7 @@ import { requestSync } from "@/lib/local/sync-status";
 import { CreateHousehold } from "./create-household";
 import { Dashboard } from "./dashboard";
 import { PaySetup } from "./pay-setup";
+import { HomeSkeleton, LoadingScreen } from "@/components/loading";
 
 export function AppHome() {
   const router = useRouter();
@@ -19,12 +20,8 @@ export function AppHome() {
     if (auth.status === "signed_out") router.replace("/signin");
   }, [auth.status, router]);
 
-  if (auth.status !== "signed_in") return <Loading />;
+  if (auth.status !== "signed_in") return <LoadingScreen />;
   return <SignedIn user={auth.user} />;
-}
-
-function Loading() {
-  return <main className="flex flex-1 items-center justify-center opacity-60">Loading…</main>;
 }
 
 function SignedIn({ user }: { user: CurrentUser }) {
@@ -38,7 +35,7 @@ function SignedIn({ user }: { user: CurrentUser }) {
     requestSync().finally(() => setCheckedServer(true));
   }, []);
 
-  if (household.status === "loading" || (household.status === "none" && !checkedServer)) return <Loading />;
+  if (household.status === "loading" || (household.status === "none" && !checkedServer)) return <HomeSkeleton />;
   if (household.status === "none") return <CreateHousehold user={user} />;
 
   return <Ready household={household.household} me={household.me} onSignOut={onSignOut} signingOut={signingOut} />;
@@ -63,7 +60,7 @@ function Ready({
 }) {
   const pay = usePaySettings(me.id);
 
-  if (pay.status === "loading") return <Loading />;
+  if (pay.status === "loading") return <HomeSkeleton />;
   // First run: set the payday. Later changes are made in Settings.
   if (!pay.settings) {
     return (

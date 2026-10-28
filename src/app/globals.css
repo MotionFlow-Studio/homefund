@@ -53,3 +53,23 @@ body {
     top: 50%;
   }
 }
+
+/* Loading indicators appear only if loading takes a moment. */
+@keyframes loading-appear {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.loading-appear {
+  animation: loading-appear 0.3s ease-out 0.25s both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loading-appear {
+    animation-duration: 0s;
+  }
+}

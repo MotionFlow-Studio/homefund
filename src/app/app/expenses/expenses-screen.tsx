@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, ReceiptText } from "lucide-react";
+import { ArrowLeft, Camera, ReceiptText, SearchX } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -13,6 +13,7 @@ import { useMyHousehold } from "@/lib/household";
 import { formatMoney } from "@/lib/money";
 import type { Expense, Household, Member } from "@/lib/model";
 import { ExpenseForm } from "../expense-form";
+import { EmptyState, ListSkeleton, LoadingScreen } from "@/components/loading";
 
 export function ExpensesScreen() {
   const router = useRouter();
@@ -25,7 +26,7 @@ export function ExpensesScreen() {
   }, [auth.status, household.status, router]);
 
   if (auth.status !== "signed_in" || household.status !== "ready") {
-    return <main className="flex flex-1 items-center justify-center opacity-60">Loading…</main>;
+    return <LoadingScreen />;
   }
   return <ExpenseList household={household.household} me={household.me} />;
 }
@@ -165,19 +166,45 @@ function ExpenseList({ household, me }: { household: Household; me: Member }) {
       ) : null}
 
       {expenses === undefined ? (
-        <p className="mt-10 text-center opacity-60">Loading…</p>
-      ) : filtered.length === 0 ? (
-        <div className="mt-16 flex flex-col items-center gap-3 text-center">
-          <span className="flex h-14 w-14 items-center justify-center rounded-full bg-brand/10 text-brand">
-            <ReceiptText size={26} aria-hidden />
-          </span>
-          <p className="font-semibold">{expenses.length === 0 ? "No expenses yet" : "Nothing matches these filters"}</p>
-          <p className="max-w-xs text-sm opacity-70">
-            {expenses.length === 0
-              ? "Add your first expense from the home screen. It shows up here, grouped by day."
-              : "Try another category or member."}
-          </p>
+        <div className="mt-6">
+          <ListSkeleton rows={6} />
         </div>
+      ) : filtered.length === 0 ? (
+        expenses.length === 0 ? (
+          <EmptyState
+            icon={<ReceiptText size={26} />}
+            title="No expenses yet"
+            action={
+              <Link
+                href="/app/scan"
+                className="inline-flex h-11 items-center gap-2 rounded-xl bg-brand px-5 font-semibold text-white hover:bg-brand-strong"
+              >
+                <Camera size={18} aria-hidden /> Scan a receipt
+              </Link>
+            }
+          >
+            Scan a receipt or add an expense on the home screen. Everything the family spends shows up here, day by day.
+          </EmptyState>
+        ) : (
+          <EmptyState
+            icon={<SearchX size={26} />}
+            title="Nothing matches these filters"
+            action={
+              <button
+                type="button"
+                onClick={() => {
+                  setCategory("all");
+                  setMemberId("all");
+                }}
+                className="inline-flex h-11 items-center rounded-xl border border-black/15 px-5 font-semibold hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/10"
+              >
+                Show all expenses
+              </button>
+            }
+          >
+            No expenses in this category{memberId !== "all" ? " for this person" : ""} yet.
+          </EmptyState>
+        )
       ) : (
         <>
           <p className="mt-4 text-sm opacity-70">
