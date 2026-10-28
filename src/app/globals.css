@@ -27,3 +27,24 @@ body {
   color: var(--foreground);
   font-family: var(--font-sans), system-ui, sans-serif;
 }
+
+/* The line that sweeps over a receipt while it is being read. */
+@keyframes scan-sweep {
+  from {
+    top: 8%;
+  }
+  to {
+    top: 92%;
+  }
+}
+
+.scan-line {
+  animation: scan-sweep 1.6s ease-in-out infinite alternate;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scan-line {
+    animation: none;
+    top: 50%;
+  }
+}

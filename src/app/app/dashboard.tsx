@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarDays, LogOut, Plus, Settings2 } from "lucide-react";
+import { CalendarDays, Camera, LogOut, Plus, Settings2 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { CategoryBadge } from "@/components/category-badge";
@@ -197,7 +197,7 @@ export function Dashboard({ household, me, settings, fixedCosts, onEditPay, onSi
           </Link>
         </div>
         {recent.length === 0 ? (
-          <p className="mt-3 text-sm opacity-70">Nothing yet. Tap “Add expense” to record your first one.</p>
+          <p className="mt-3 text-sm opacity-70">Nothing yet. Scan a receipt or tap “Add expense” to record your first one.</p>
         ) : (
           <ul className="mt-3 flex flex-col gap-1">
             {recent.map((e) => (
@@ -231,13 +231,21 @@ export function Dashboard({ household, me, settings, fixedCosts, onEditPay, onSi
             </button>
           </div>
         ) : null}
-        <button
-          type="button"
-          onClick={() => setAdding(true)}
-          className="pointer-events-auto flex h-14 items-center justify-center gap-2 rounded-2xl bg-brand text-lg font-semibold text-white shadow-lg transition hover:bg-brand-strong active:scale-[0.98]"
-        >
-          <Plus size={22} aria-hidden /> Add expense
-        </button>
+        <div className="pointer-events-auto grid grid-cols-[auto_1fr] gap-3">
+          <Link
+            href="/app/scan"
+            className="flex h-14 items-center justify-center gap-2 rounded-2xl bg-neutral-900 px-5 text-lg font-semibold text-white shadow-lg transition active:scale-[0.98] dark:bg-neutral-100 dark:text-neutral-900"
+          >
+            <Camera size={22} aria-hidden /> Scan
+          </Link>
+          <button
+            type="button"
+            onClick={() => setAdding(true)}
+            className="flex h-14 items-center justify-center gap-2 rounded-2xl bg-brand text-lg font-semibold text-white shadow-lg transition hover:bg-brand-strong active:scale-[0.98]"
+          >
+            <Plus size={22} aria-hidden /> Add expense
+          </button>
+        </div>
       </div>
     </main>
   );

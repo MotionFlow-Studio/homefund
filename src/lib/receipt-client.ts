@@ -2,7 +2,7 @@ import type { ReceiptScan, ReceiptScanError } from "@/lib/receipt";
 import { RECEIPT_TIMEOUT_MS } from "@/lib/receipt-limits";
 import { PhotoError, prepareReceiptPhoto } from "@/lib/receipt-photo";
 
-export type ScanFailure = ReceiptScanError | "offline";
+export type ScanFailure = ReceiptScanError | "offline" | "cancelled";
 
 export type ScanResult = { ok: true; receipt: ReceiptScan } | { ok: false; error: ScanFailure };
 
@@ -13,7 +13,11 @@ const CLIENT_TIMEOUT_MS = RECEIPT_TIMEOUT_MS + 5_000;
  * Reads a receipt photo. The photo is prepared on the phone (upright, smaller,
  * no location or other metadata), sent once, and not kept anywhere.
  */
-export async function scanReceiptPhoto(photo: Blob, householdCurrency: string): Promise<ScanResult> {
+export async function scanReceiptPhoto(
+  photo: Blob,
+  householdCurrency: string,
+  cancel?: AbortSignal,
+): Promise<ScanResult> {
   let upload: Blob;
   try {
     upload = await prepareReceiptPhoto(photo);
@@ -32,12 +36,15 @@ export async function scanReceiptPhoto(photo: Blob, householdCurrency: string): 
       method: "POST",
       body: form,
       cache: "no-store",
-      signal: AbortSignal.timeout(CLIENT_TIMEOUT_MS),
+      signal: cancel
+        ? AbortSignal.any([cancel, AbortSignal.timeout(CLIENT_TIMEOUT_MS)])
+        : AbortSignal.timeout(CLIENT_TIMEOUT_MS),
     });
     const body = await response.json().catch(() => null);
     if (response.ok && body) return { ok: true, receipt: body as ReceiptScan };
     return { ok: false, error: (body?.error as ReceiptScanError) ?? "scan_failed" };
   } catch (error) {
+    if (cancel?.aborted) return { ok: false, error: "cancelled" };
     if (error instanceof DOMException && error.name === "TimeoutError") return { ok: false, error: "timeout" };
     return { ok: false, error: "offline" };
   }
@@ -56,5 +63,6 @@ export const SCAN_ERROR_TEXT: Record<ScanFailure, string> = {
   timeout: "Reading took too long. Try again, or enter the amount yourself.",
   scan_failed: "The receipt could not be read. Try again, or enter the amount yourself.",
   unavailable: "Receipt scanning is not available right now. Enter the amount yourself.",
+  cancelled: "Scanning was cancelled.",
   offline: "You are offline. Receipt scanning needs a connection; you can still add the amount yourself.",
 };
