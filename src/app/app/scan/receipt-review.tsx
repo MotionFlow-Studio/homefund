@@ -11,7 +11,7 @@ import { addDays, localToday } from "@/lib/budget";
 import { CATEGORY_LIST, getCategory, type CategoryId } from "@/lib/categories";
 import { useHouseholdMembers } from "@/lib/expenses";
 import { newId, saveExpenseWithItems } from "@/lib/local/store";
-import { currencyDecimals, formatMoney, fromMinor, toMinor } from "@/lib/money";
+import { amountPlaceholder, currencyDecimals, formatAmountInput, formatMoney, moneyLocale, toMinor } from "@/lib/money";
 import type { Expense, Household, Member } from "@/lib/model";
 import type { ReceiptScan } from "@/lib/receipt";
 import { checkReceipt } from "@/lib/receipt-check";
@@ -73,7 +73,7 @@ export function ReceiptReview({
     receipt.items.map((item) => ({
       key: newId(),
       name: item.name,
-      amount: fromMinor(item.lineTotalMinor, currency).toFixed(decimals),
+      amount: formatAmountInput(item.lineTotalMinor, currency),
       category: item.category,
       quantityMilli: item.quantityMilli,
       unitPrice: item.unitPrice,
@@ -99,6 +99,7 @@ export function ReceiptReview({
     household.currency,
   );
   const money = (minor: number) => formatMoney(minor, currency);
+  const number = new Intl.NumberFormat(moneyLocale(currency), { maximumFractionDigits: 6 });
   const split = categorySplit(lines.map((line, index) => ({ category: line.category, amountMinor: amounts[index] ?? 0 })));
 
   function update(key: string, changes: Partial<Line>) {
@@ -308,7 +309,7 @@ export function ReceiptReview({
                     />
                     {line.quantityMilli !== 1000 && line.unitPrice ? (
                       <p className="text-xs opacity-60">
-                        {line.quantityMilli / 1000} × {line.unitPrice}
+                        {number.format(line.quantityMilli / 1000)} × {number.format(Number(line.unitPrice))}
                       </p>
                     ) : null}
                   </div>
@@ -318,7 +319,7 @@ export function ReceiptReview({
                     onChange={(e) => update(line.key, { amount: e.target.value.replace(/[^\d.,]/g, "") })}
                     inputMode={decimals > 0 ? "decimal" : "numeric"}
                     autoComplete="off"
-                    placeholder={decimals > 0 ? `0.${"0".repeat(decimals)}` : "0"}
+                    placeholder={amountPlaceholder(currency)}
                     aria-label={`Item ${index + 1} amount in ${currency}`}
                     aria-invalid={invalid || undefined}
                     className={`w-24 rounded-lg bg-transparent px-2 py-1 text-right font-semibold tabular-nums outline-none focus:bg-black/5 dark:focus:bg-white/10 ${

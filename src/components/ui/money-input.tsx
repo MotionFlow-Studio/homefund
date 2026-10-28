@@ -1,6 +1,6 @@
 "use client";
 
-import { currencyDecimals } from "@/lib/money";
+import { amountPlaceholder, currencyDecimals } from "@/lib/money";
 
 type Props = {
   label: string;
@@ -13,7 +13,7 @@ type Props = {
   hint?: string;
 };
 
-/** Text field for amounts; accepts "49.97" or "49,97" and keeps every decimal. */
+/** Text field for amounts; accepts local ways of typing them ("1.234,56", "1 234.56") and keeps every decimal. */
 export function MoneyInput({ label, currency, value, onChange, error, name, placeholder, hint }: Props) {
   const decimals = currencyDecimals(currency);
   const id = name ?? label.toLowerCase().replace(/\W+/g, "-");
@@ -27,7 +27,7 @@ export function MoneyInput({ label, currency, value, onChange, error, name, plac
           inputMode={decimals > 0 ? "decimal" : "numeric"}
           autoComplete="off"
           value={value}
-          placeholder={placeholder ?? (decimals > 0 ? `0.${"0".repeat(decimals)}` : "0")}
+          placeholder={placeholder ?? amountPlaceholder(currency)}
           onChange={(e) => onChange(e.target.value.replace(/[^\d.,\s]/g, ""))}
           aria-invalid={error ? true : undefined}
           aria-describedby={error ? `${id}-error` : hint ? `${id}-hint` : undefined}

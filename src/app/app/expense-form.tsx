@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { addDays, localToday } from "@/lib/budget";
 import { CATEGORY_LIST, type CategoryId } from "@/lib/categories";
 import { addManualExpense, updateExpense } from "@/lib/expenses";
-import { currencyDecimals, fromMinor, toMinor } from "@/lib/money";
+import { currencyDecimals, formatAmountInput, toMinor } from "@/lib/money";
 import type { Expense, Household, Member } from "@/lib/model";
 
 type Props = {
@@ -24,7 +24,7 @@ type Props = {
 export function ExpenseForm({ household, me, members = [], expense, onClose, onSaved, onDelete }: Props) {
   const today = localToday();
   const yesterday = addDays(today, -1);
-  const [amount, setAmount] = useState(() => (expense ? String(fromMinor(expense.amountMinor, household.currency)) : ""));
+  const [amount, setAmount] = useState(() => (expense ? formatAmountInput(expense.amountMinor, household.currency) : ""));
   const [category, setCategory] = useState<CategoryId | null>(expense?.category ?? null);
   const [spentOn, setSpentOn] = useState(expense?.spentOn ?? today);
   const [memberId, setMemberId] = useState(expense?.memberId ?? me.id);

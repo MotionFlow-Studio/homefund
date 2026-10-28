@@ -4,7 +4,7 @@ import { Plus, Trash2 } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { MoneyInput } from "@/components/ui/money-input";
-import { formatMoney, fromMinor, toMinor } from "@/lib/money";
+import { formatAmountInput, formatMoney, toMinor } from "@/lib/money";
 import type { FixedCost, PaySettings } from "@/lib/model";
 import { savePaySettings } from "@/lib/pay-settings";
 
@@ -39,7 +39,7 @@ function parseAmount(value: string, currency: string): number | null {
 }
 
 function asText(minor: number, currency: string) {
-  return String(fromMinor(minor, currency));
+  return formatAmountInput(minor, currency);
 }
 
 export function PaySetup({ memberId, currency, settings, fixedCosts, onDone, onCancel }: Props) {

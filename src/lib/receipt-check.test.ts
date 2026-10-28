@@ -62,8 +62,8 @@ describe("receipt check", () => {
   });
 
   it("explains each warning", () => {
-    expect(warningText({ code: "total_mismatch", differenceMinor: 250 }, "EUR")).toBe(
-      "The items add up to €2.50 more than the receipt total. Check the amounts or remove a line.",
+    expect(warningText({ code: "total_mismatch", differenceMinor: 250 }, "EUR").replace(/[\u00a0\u202f]/g, " ")).toBe(
+      "The items add up to 2,50 € more than the receipt total. Check the amounts or remove a line.",
     );
     expect(warningText({ code: "line_mismatch", line: 3, expectedMinor: 658 }, "RON")).toContain("Line 4");
   });
