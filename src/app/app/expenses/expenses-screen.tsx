@@ -46,7 +46,10 @@ function ExpenseList({ household, me }: { household: Household; me: Member }) {
   const liveMembers = useHouseholdMembers(household.id);
   const members = useMemo(() => liveMembers ?? [], [liveMembers]);
   const [category, setCategory] = useState<CategoryId | "all">("all");
-  const [memberId, setMemberId] = useState<string>("all");
+  // "/app/expenses?member=<id>" opens the list filtered to that member.
+  const [memberId, setMemberId] = useState<string>(
+    () => new URLSearchParams(window.location.search).get("member") ?? "all",
+  );
   const [editing, setEditing] = useState<Expense | null>(null);
   const [toast, setToast] = useState<{ text: string; undo?: () => void } | null>(null);
   const today = localToday();

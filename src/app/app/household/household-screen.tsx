@@ -39,7 +39,13 @@ export function HouseholdScreen() {
 const ROLE_LABEL: Record<Member["role"], string> = { owner: "Set up the household", adult: "Adult", child: "Child" };
 
 function when(iso: string) {
-  return new Date(iso).toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+  return new Date(iso).toLocaleString("en-GB", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 function Family({ household, me }: { household: Household; me: Member }) {
@@ -64,15 +70,20 @@ function Family({ household, me }: { household: Household; me: Member }) {
         </h2>
         <ul className="divide-y divide-black/5 rounded-3xl border border-black/10 dark:divide-white/10 dark:border-white/10">
           {members.map((member) => (
-            <li key={member.id} className="flex items-center gap-3 px-4 py-3">
-              <span className="size-9 shrink-0 rounded-full" style={{ backgroundColor: member.color }} aria-hidden />
-              <span className="min-w-0 flex-1">
-                <span className="block truncate font-medium">
-                  {member.name}
-                  {member.id === me.id ? <span className="opacity-60"> (you)</span> : null}
+            <li key={member.id}>
+              <Link
+                href={`/app/member?id=${member.id}`}
+                className="flex items-center gap-3 px-4 py-3 transition hover:bg-black/[0.03] dark:hover:bg-white/[0.04]"
+              >
+                <span className="size-9 shrink-0 rounded-full" style={{ backgroundColor: member.color }} aria-hidden />
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate font-medium">
+                    {member.name}
+                    {member.id === me.id ? <span className="opacity-60"> (you)</span> : null}
+                  </span>
+                  <span className="block text-xs opacity-60">{ROLE_LABEL[member.role]}</span>
                 </span>
-                <span className="block text-xs opacity-60">{ROLE_LABEL[member.role]}</span>
-              </span>
+              </Link>
             </li>
           ))}
         </ul>

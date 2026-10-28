@@ -4,7 +4,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { addDays, computeBudget, localToday, payPeriod, type Budget } from "@/lib/budget";
 import { categoryTotals, familyBudgets, type CategoryTotal, type MemberBudget } from "@/lib/family-budget";
 import { localDb } from "@/lib/local/db";
-import type { FixedCost, PaySettings } from "@/lib/model";
+import type { Expense, FixedCost, PaySettings } from "@/lib/model";
 
 /** The member's live budget for the current pay period. */
 export function useBudget(memberId: string, settings: PaySettings, fixedCosts: FixedCost[]): Budget | null {
@@ -83,4 +83,48 @@ export function useHouseholdOverview(householdId: string, meId: string): Househo
       monthByCategory: categoryTotals(month, receiptItems),
     };
   }, [householdId, meId, today, monthStart]);
+}
+
+export type MemberDetail = {
+  entry: MemberBudget;
+  /** Spending in the member's current pay period by category, or this month without a payday. */
+  byCategory: CategoryTotal[];
+  /** The member's latest expenses, newest first. */
+  recent: Expense[];
+  expenseCount: number;
+};
+
+/** One member's budget, spending and latest expenses; null if the member is not in the household. */
+export function useMemberDetail(householdId: string, meId: string, memberId: string): MemberDetail | null | undefined {
+  const today = localToday();
+  return useLiveQuery(async () => {
+    const db = localDb();
+    const member = await db.members.get(memberId);
+    if (!member || member.householdId !== householdId || member.deletedAt !== null) return null;
+    const settings = await db.paySettings.get(memberId);
+    const fixedCosts = await db.fixedCosts.where("memberId").equals(memberId).toArray();
+    const expenses = (await db.expenses.where("memberId").equals(memberId).toArray())
+      .filter((e) => e.deletedAt === null)
+      .sort((a, b) => b.spentOn.localeCompare(a.spentOn) || b.createdAt.localeCompare(a.createdAt));
+    const [entry] = familyBudgets({
+      today,
+      meId,
+      members: [member],
+      paySettings: settings ? [settings] : [],
+      fixedCosts,
+      expenses,
+    });
+    const from = entry.budget?.start ?? `${today.slice(0, 8)}01`;
+    const inPeriod = expenses.filter((e) => e.spentOn >= from && e.spentOn <= today);
+    const receiptItems = await db.receiptItems
+      .where("expenseId")
+      .anyOf(inPeriod.filter((e) => e.source === "receipt").map((e) => e.id))
+      .toArray();
+    return {
+      entry,
+      byCategory: categoryTotals(inPeriod, receiptItems),
+      recent: expenses.slice(0, 8),
+      expenseCount: expenses.length,
+    };
+  }, [householdId, meId, memberId, today]);
 }

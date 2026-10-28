@@ -24,42 +24,53 @@ export function FamilyBudgets({ household, me }: { household: Household; me: Mem
           Overview
         </Link>
       </div>
-      <ul className="mt-3 flex flex-col gap-4">
+      <ul className="mt-2 flex flex-col gap-1">
         {budgets.map(({ member, budget }) => {
           const share =
-            budget && budget.availableMinor > 0 ? Math.min(100, (budget.spentMinor / budget.availableMinor) * 100) : 100;
+            budget && budget.availableMinor > 0
+              ? Math.min(100, (budget.spentMinor / budget.availableMinor) * 100)
+              : 100;
           return (
             <li key={member.id}>
-              <div className="flex items-center gap-3">
-                <span className="size-8 shrink-0 rounded-full" style={{ backgroundColor: member.color }} aria-hidden />
-                <span className="min-w-0 flex-1 truncate font-medium">
-                  {member.name.split(" ")[0]}
-                  {member.id === me.id ? <span className="font-normal opacity-60"> (you)</span> : null}
-                </span>
-                {budget ? (
+              <Link
+                href={`/app/member?id=${member.id}`}
+                className="-mx-2 block rounded-2xl px-2 py-1.5 transition hover:bg-black/[0.03] dark:hover:bg-white/[0.04]"
+              >
+                <div className="flex items-center gap-3">
                   <span
-                    className={`text-right font-semibold tabular-nums ${budget.overspent ? "text-red-600 dark:text-red-400" : ""}`}
-                  >
-                    {budget.overspent ? `${money(-budget.leftMinor)} over` : `${money(budget.leftMinor)} left`}
+                    className="size-8 shrink-0 rounded-full"
+                    style={{ backgroundColor: member.color }}
+                    aria-hidden
+                  />
+                  <span className="min-w-0 flex-1 truncate font-medium">
+                    {member.name.split(" ")[0]}
+                    {member.id === me.id ? <span className="font-normal opacity-60"> (you)</span> : null}
                   </span>
-                ) : (
-                  <span className="text-sm opacity-60">No payday set yet</span>
-                )}
-              </div>
-              {budget ? (
-                <div className="mt-1.5 pl-11">
-                  <div className="h-1.5 overflow-hidden rounded-full bg-black/10 dark:bg-white/10">
-                    <div
-                      className={`h-full rounded-full ${budget.overspent ? "bg-red-500" : ""}`}
-                      style={{ width: `${share}%`, backgroundColor: budget.overspent ? undefined : member.color }}
-                    />
-                  </div>
-                  <p className="mt-1 text-xs opacity-70">
-                    {budget.overspent ? "Nothing more to spend" : `${money(budget.perDayMinor)} a day`} ·{" "}
-                    {budget.daysLeft === 1 ? "payday tomorrow" : `${budget.daysLeft} days to payday`}
-                  </p>
+                  {budget ? (
+                    <span
+                      className={`text-right font-semibold tabular-nums ${budget.overspent ? "text-red-600 dark:text-red-400" : ""}`}
+                    >
+                      {budget.overspent ? `${money(-budget.leftMinor)} over` : `${money(budget.leftMinor)} left`}
+                    </span>
+                  ) : (
+                    <span className="text-sm opacity-60">No payday set yet</span>
+                  )}
                 </div>
-              ) : null}
+                {budget ? (
+                  <div className="mt-1.5 pl-11">
+                    <div className="h-1.5 overflow-hidden rounded-full bg-black/10 dark:bg-white/10">
+                      <div
+                        className={`h-full rounded-full ${budget.overspent ? "bg-red-500" : ""}`}
+                        style={{ width: `${share}%`, backgroundColor: budget.overspent ? undefined : member.color }}
+                      />
+                    </div>
+                    <p className="mt-1 text-xs opacity-70">
+                      {budget.overspent ? "Nothing more to spend" : `${money(budget.perDayMinor)} a day`} ·{" "}
+                      {budget.daysLeft === 1 ? "payday tomorrow" : `${budget.daysLeft} days to payday`}
+                    </p>
+                  </div>
+                ) : null}
+              </Link>
             </li>
           );
         })}
