@@ -141,6 +141,23 @@ groceries / household / kids) was exactly right with `low` effort.
   same receipt photographed small and tilted on a table or pushed into a
   corner (it fills 5-10% of the photo); about 7.5-8 s each.
 
+## Blurry photos and errors
+
+- Before upload the phone measures sharpness (variance of the Laplacian on a
+  512 px copy, sharpest tiles) and brightness, and suggests a retake below
+  300 / 45 (`src/lib/photo-quality.ts`). Calibrated by reading blurred test
+  receipts with the model: a small receipt blurred past the threshold came
+  back with invented lines that still added up.
+- The model also answers `readable`; when it cannot read every amount with
+  certainty it returns no items and the app says "Too blurry to read"
+  (`422 unreadable`) instead of showing guesses. Tested: heavily blurred
+  receipts are refused, sharp and lightly blurred ones are read, and a
+  slightly misread one is caught by the totals check.
+- Reading longer than 10 s shows "Taking longer than usual" with manual
+  entry. Network, timeout, busy and server errors keep the photo in memory so
+  it can be sent again without a new shot; rate limits show a countdown; an
+  expired session leads to sign in.
+
 ## Cost per scanned receipt
 
 About **$0.01** (SAM $0.0025 + Muse Spark ~$0.007), and ~6 s end to end.

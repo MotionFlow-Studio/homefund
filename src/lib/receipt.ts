@@ -50,6 +50,7 @@ export type ReceiptScanError =
   | "too_large"
   | "unsupported_image"
   | "not_a_receipt"
+  | "unreadable"
   | "rate_limited"
   | "busy"
   | "timeout"

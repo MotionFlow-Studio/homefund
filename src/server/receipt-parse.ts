@@ -110,9 +110,10 @@ export const LINE_KINDS = ["item", "item_discount", "receipt_discount"] as const
 export const RECEIPT_JSON_SCHEMA = {
   type: "object",
   additionalProperties: false,
-  required: ["is_receipt", "merchant", "date", "currency", "total", "items"],
+  required: ["is_receipt", "readable", "merchant", "date", "currency", "total", "items"],
   properties: {
     is_receipt: { type: "boolean" },
+    readable: { type: "boolean" },
     merchant: { type: ["string", "null"] },
     date: { type: ["string", "null"], description: "YYYY-MM-DD" },
     currency: { type: ["string", "null"], description: "ISO 4217 code" },
@@ -138,6 +139,7 @@ export const RECEIPT_JSON_SCHEMA = {
 
 const modelReceiptSchema = z.object({
   is_receipt: z.boolean(),
+  readable: z.boolean(),
   merchant: z.string().nullable(),
   date: z.string().nullable(),
   currency: z.string().nullable(),
@@ -156,7 +158,9 @@ const modelReceiptSchema = z.object({
     .max(300),
 });
 
-export type ParsedReceipt = { ok: true; receipt: ReceiptScan } | { ok: false; reason: "not_a_receipt" | "invalid" };
+export type ParsedReceipt =
+  | { ok: true; receipt: ReceiptScan }
+  | { ok: false; reason: "not_a_receipt" | "unreadable" | "invalid" };
 
 function cleanText(value: string | null, max: number): string | null {
   const text = value?.replace(/\s+/g, " ").trim().slice(0, max);
@@ -209,6 +213,8 @@ export function parseReceiptJson(text: string, fallbackCurrency: string, now = n
   }
 
   if (!data.is_receipt) return { ok: false, reason: "not_a_receipt" };
+  // Guessed amounts are worse than none: the user retakes the photo instead.
+  if (!data.readable) return { ok: false, reason: "unreadable" };
 
   const printedCurrency = data.currency?.trim().toUpperCase() ?? null;
   const currencyDetected = isCurrency(printedCurrency);

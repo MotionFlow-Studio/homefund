@@ -70,6 +70,7 @@ describe("receipt JSON", () => {
   const receipt = (overrides: object = {}) =>
     JSON.stringify({
       is_receipt: true,
+      readable: true,
       merchant: "  Lidl   Romania ",
       date: "2026-10-27",
       currency: "ron",
@@ -140,6 +141,7 @@ describe("receipt JSON", () => {
 
   it("recognises photos that are not receipts and broken answers", () => {
     expect(parseReceiptJson(receipt({ is_receipt: false }), "EUR")).toEqual({ ok: false, reason: "not_a_receipt" });
+    expect(parseReceiptJson(receipt({ readable: false }), "EUR")).toEqual({ ok: false, reason: "unreadable" });
     expect(parseReceiptJson(receipt({ items: [] }), "EUR")).toEqual({ ok: false, reason: "not_a_receipt" });
     expect(parseReceiptJson("{", "EUR")).toEqual({ ok: false, reason: "invalid" });
     expect(parseReceiptJson(receipt({ items: [{ name: "x" }] }), "EUR")).toEqual({ ok: false, reason: "invalid" });

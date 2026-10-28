@@ -70,7 +70,7 @@ export async function POST(request: Request) {
     return json(await scanReceipt(bytes, currency, signal));
   } catch (error) {
     if (error instanceof ScanError) {
-      const status = { unsupported_image: 415, not_a_receipt: 422, scan_failed: 502 }[error.code];
+      const status = { unsupported_image: 415, not_a_receipt: 422, unreadable: 422, scan_failed: 502 }[error.code];
       return errorResponse(status, error.code);
     }
     if (timeout.aborted) return errorResponse(504, "timeout");

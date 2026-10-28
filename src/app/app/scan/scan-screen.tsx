@@ -1,6 +1,6 @@
 "use client";
 
-import { RotateCcw, ScanLine } from "lucide-react";
+import { CircleAlert, Clock, ImageOff, RotateCcw, ScanLine, TriangleAlert, WifiOff } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,8 @@ import { useCurrentUser } from "@/lib/auth-client";
 import { useMyHousehold } from "@/lib/household";
 import type { Household, Member } from "@/lib/model";
 import type { ReceiptScan } from "@/lib/receipt";
-import { SCAN_ERROR_TEXT, scanReceiptPhoto, type ScanFailure } from "@/lib/receipt-client";
+import { assessPhoto, type PhotoQuality } from "@/lib/photo-quality";
+import { RETRY_SAME_PHOTO, SCAN_ERROR_TEXT, scanReceiptPhoto, type ScanFailure } from "@/lib/receipt-client";
 import { ExpenseForm } from "../expense-form";
 import { Camera } from "./camera";
 import { ReceiptReview } from "./receipt-review";
@@ -34,8 +35,11 @@ type Stage =
   | { name: "preview"; photo: Blob }
   | { name: "reading"; photo: Blob }
   | { name: "read"; receipt: ReceiptScan }
-  | { name: "failed"; error: ScanFailure }
+  | { name: "failed"; error: ScanFailure; photo: Blob; retryAfterSeconds?: number }
   | { name: "manual" };
+
+/** After this long, reading counts as slow and manual entry is offered. */
+const SLOW_AFTER_MS = 10_000;
 
 function ScanFlow({ household, me }: { household: Household; me: Member }) {
   const router = useRouter();
@@ -47,6 +51,12 @@ function ScanFlow({ household, me }: { household: Household; me: Member }) {
 
   const close = () => router.push("/app");
 
+  function cancelReading(next: Stage) {
+    cancelRef.current?.abort();
+    cancelRef.current = null;
+    setStage(next);
+  }
+
   async function read(photo: Blob) {
     setStage({ name: "reading", photo });
     const cancel = new AbortController();
@@ -54,8 +64,13 @@ function ScanFlow({ household, me }: { household: Household; me: Member }) {
     const result = await scanReceiptPhoto(photo, household.currency, cancel.signal);
     if (cancel.signal.aborted) return;
     cancelRef.current = null;
-    // The photo is dropped here; only the result is kept.
-    setStage(result.ok ? { name: "read", receipt: result.receipt } : { name: "failed", error: result.error });
+    // On success the photo is dropped; only the result is kept. On failure it
+    // stays in memory so it can be sent again without a new shot.
+    setStage(
+      result.ok
+        ? { name: "read", receipt: result.receipt }
+        : { name: "failed", error: result.error, photo, retryAfterSeconds: result.retryAfterSeconds },
+    );
   }
 
   switch (stage.name) {
@@ -64,36 +79,21 @@ function ScanFlow({ household, me }: { household: Household; me: Member }) {
     case "preview":
       return (
         <PhotoView photo={stage.photo}>
-          <div className="grid grid-cols-2 gap-3">
-            <button
-              type="button"
-              onClick={() => setStage({ name: "camera" })}
-              className="flex h-14 items-center justify-center gap-2 rounded-2xl bg-white/15 text-lg font-semibold active:bg-white/25"
-            >
-              <RotateCcw size={20} aria-hidden /> Retake
-            </button>
-            <button
-              type="button"
-              onClick={() => read(stage.photo)}
-              className="flex h-14 items-center justify-center gap-2 rounded-2xl bg-brand text-lg font-semibold active:scale-[0.98]"
-            >
-              <ScanLine size={20} aria-hidden /> Use photo
-            </button>
-          </div>
+          <PreviewActions
+            photo={stage.photo}
+            onRetake={() => setStage({ name: "camera" })}
+            onUse={() => read(stage.photo)}
+          />
         </PhotoView>
       );
     case "reading":
       return (
         <PhotoView photo={stage.photo} reading>
-          <ReadingStatus />
+          <ReadingStatus onManual={() => cancelReading({ name: "manual" })} />
           <button
             type="button"
-            onClick={() => {
-              cancelRef.current?.abort();
-              cancelRef.current = null;
-              setStage({ name: "camera" });
-            }}
-            className="mt-4 h-12 w-full rounded-2xl bg-white/15 font-semibold active:bg-white/25"
+            onClick={() => cancelReading({ name: "camera" })}
+            className="mt-3 h-12 w-full rounded-2xl bg-white/15 font-semibold active:bg-white/25"
           >
             Cancel
           </button>
@@ -101,18 +101,14 @@ function ScanFlow({ household, me }: { household: Household; me: Member }) {
       );
     case "failed":
       return (
-        <main className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center gap-6 px-4 py-10">
-          <div>
-            <h1 className="text-2xl font-bold">Could not read the receipt</h1>
-            <p className="mt-2 opacity-80">{SCAN_ERROR_TEXT[stage.error]}</p>
-          </div>
-          <div className="flex flex-col gap-3">
-            <Button onClick={() => setStage({ name: "camera" })}>Try again</Button>
-            <Button variant="secondary" onClick={() => setStage({ name: "manual" })}>
-              Enter it yourself
-            </Button>
-          </div>
-        </main>
+        <ScanFailed
+          error={stage.error}
+          retryAfterSeconds={stage.retryAfterSeconds}
+          onRetry={() => read(stage.photo)}
+          onRetake={() => setStage({ name: "camera" })}
+          onManual={() => setStage({ name: "manual" })}
+          onSignIn={() => router.push("/signin")}
+        />
       );
     case "manual":
       return <ExpenseForm household={household} me={me} onClose={close} onSaved={close} />;
@@ -127,6 +123,142 @@ function ScanFlow({ household, me }: { household: Household; me: Member }) {
         />
       );
   }
+}
+
+/**
+ * Retake or use the photo. A blurry or dark photo is flagged first, because
+ * small print in it may be misread.
+ */
+function PreviewActions({ photo, onRetake, onUse }: { photo: Blob; onRetake: () => void; onUse: () => void }) {
+  const [quality, setQuality] = useState<PhotoQuality | null | "checking">("checking");
+
+  useEffect(() => {
+    let current = true;
+    assessPhoto(photo).then((result) => current && setQuality(result));
+    return () => {
+      current = false;
+    };
+  }, [photo]);
+
+  const problem =
+    quality && quality !== "checking"
+      ? quality.dark
+        ? "This photo is too dark."
+        : quality.blurry
+          ? "This photo looks blurry."
+          : null
+      : null;
+
+  return (
+    <div className="flex flex-col gap-3">
+      {problem ? (
+        <div role="alert" className="flex gap-3 rounded-2xl bg-amber-400/15 p-3 text-sm text-amber-100">
+          <TriangleAlert size={20} aria-hidden className="mt-0.5 shrink-0 text-accent" />
+          <p>
+            <span className="font-semibold">{problem}</span> Small print may be misread. Retake it with the phone held
+            steady{quality !== "checking" && quality?.dark ? " and more light" : ""}.
+          </p>
+        </div>
+      ) : null}
+      <div className="grid grid-cols-2 gap-3">
+        <button
+          type="button"
+          onClick={onRetake}
+          className={`flex h-14 items-center justify-center gap-2 rounded-2xl text-lg font-semibold active:scale-[0.98] ${
+            problem ? "bg-brand" : "bg-white/15 active:bg-white/25"
+          }`}
+        >
+          <RotateCcw size={20} aria-hidden /> Retake
+        </button>
+        <button
+          type="button"
+          onClick={onUse}
+          disabled={quality === "checking"}
+          className={`flex h-14 items-center justify-center gap-2 rounded-2xl text-lg font-semibold active:scale-[0.98] disabled:opacity-60 ${
+            problem ? "bg-white/15 active:bg-white/25" : "bg-brand"
+          }`}
+        >
+          <ScanLine size={20} aria-hidden /> {problem ? "Use anyway" : "Use photo"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+const PHOTO_PROBLEMS: ReadonlySet<ScanFailure> = new Set(["not_a_receipt", "unreadable", "unsupported_image", "too_large"]);
+
+/** What went wrong, and the way forward that fits it. */
+function ScanFailed({
+  error,
+  retryAfterSeconds,
+  onRetry,
+  onRetake,
+  onManual,
+  onSignIn,
+}: {
+  error: ScanFailure;
+  retryAfterSeconds?: number;
+  onRetry: () => void;
+  onRetake: () => void;
+  onManual: () => void;
+  onSignIn: () => void;
+}) {
+  const [wait, setWait] = useState(retryAfterSeconds ?? 0);
+
+  useEffect(() => {
+    if (wait <= 0) return;
+    const timer = window.setTimeout(() => setWait((w) => w - 1), 1000);
+    return () => window.clearTimeout(timer);
+  }, [wait]);
+
+  const signedOut = error === "unauthorized" || error === "forbidden";
+  const retrySame = RETRY_SAME_PHOTO.has(error);
+  const Icon = error === "offline" ? WifiOff : error === "timeout" || error === "rate_limited" ? Clock : PHOTO_PROBLEMS.has(error) ? ImageOff : CircleAlert;
+  const title =
+    error === "offline"
+      ? "No connection"
+      : error === "timeout"
+        ? "Reading took too long"
+        : error === "unreadable"
+          ? "Too blurry to read"
+          : error === "not_a_receipt"
+            ? "No receipt found"
+            : error === "rate_limited" || error === "busy"
+              ? "Please wait a moment"
+              : "Could not read the receipt";
+
+  return (
+    <main className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center gap-6 px-4 py-10">
+      <div>
+        <span className="flex size-14 items-center justify-center rounded-full bg-black/5 dark:bg-white/10">
+          <Icon size={26} aria-hidden />
+        </span>
+        <h1 className="mt-4 text-2xl font-bold">{title}</h1>
+        <p role="alert" className="mt-2 opacity-80">
+          {SCAN_ERROR_TEXT[error]}
+        </p>
+      </div>
+      <div className="flex flex-col gap-3">
+        {signedOut ? (
+          <Button onClick={onSignIn}>Sign in again</Button>
+        ) : retrySame ? (
+          <>
+            <Button onClick={onRetry} disabled={wait > 0}>
+              {wait > 0 ? `Try again in ${wait} s` : "Try again"}
+            </Button>
+            <Button variant="secondary" onClick={onRetake}>
+              Take a new photo
+            </Button>
+          </>
+        ) : (
+          <Button onClick={onRetake}>Take a new photo</Button>
+        )}
+        <Button variant="secondary" onClick={onManual}>
+          Enter it yourself
+        </Button>
+      </div>
+    </main>
+  );
 }
 
 /** Shows the taken photo full screen, with actions underneath. */
@@ -162,17 +294,33 @@ function PhotoView({ photo, reading, children }: { photo: Blob; reading?: boolea
 
 const READING_STEPS = ["Finding the receipt…", "Reading the items…", "Sorting into categories…", "Checking the total…"];
 
-function ReadingStatus() {
+function ReadingStatus({ onManual }: { onManual: () => void }) {
   const [step, setStep] = useState(0);
+  const [slow, setSlow] = useState(false);
 
   useEffect(() => {
     const timer = window.setInterval(() => setStep((s) => Math.min(s + 1, READING_STEPS.length - 1)), 2200);
-    return () => window.clearInterval(timer);
+    const slowTimer = window.setTimeout(() => setSlow(true), SLOW_AFTER_MS);
+    return () => {
+      window.clearInterval(timer);
+      window.clearTimeout(slowTimer);
+    };
   }, []);
 
   return (
-    <p role="status" className="text-center text-lg font-semibold">
-      {READING_STEPS[step]}
-    </p>
+    <div className="flex flex-col items-center gap-3">
+      <p role="status" className="text-center text-lg font-semibold">
+        {slow ? "Taking longer than usual…" : READING_STEPS[step]}
+      </p>
+      {slow ? (
+        <button
+          type="button"
+          onClick={onManual}
+          className="h-12 w-full rounded-2xl bg-brand font-semibold active:scale-[0.98]"
+        >
+          Enter it yourself instead
+        </button>
+      ) : null}
+    </div>
   );
 }

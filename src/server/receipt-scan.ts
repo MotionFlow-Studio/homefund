@@ -8,7 +8,7 @@ import { bestBox, cropArea, cropRect, parseReceiptJson, RECEIPT_JSON_SCHEMA } fr
 
 /** Reading failed for a reason the user can act on. */
 export class ScanError extends Error {
-  constructor(readonly code: "unsupported_image" | "not_a_receipt" | "scan_failed") {
+  constructor(readonly code: "unsupported_image" | "not_a_receipt" | "unreadable" | "scan_failed") {
     super(code);
   }
 }
@@ -51,6 +51,8 @@ const PROMPT = [
   ...CATEGORY_LIST.map((category) => `- ${category.id}: ${category.hint}`),
   "",
   "If the image is not a receipt, set is_receipt to false and return no items.",
+  "readable: false if the print is too blurry, dark, glared or cut off to read every amount with",
+  "certainty. Never guess amounts; when unsure, set readable to false and return no items.",
 ].join("\n");
 
 /** A second, more careful read is only attempted if this much time is left. */
@@ -93,7 +95,7 @@ export async function scanReceipt(
     if (second.ok && (!parsed.ok || second.receipt.check.totalsMatch)) parsed = second;
   }
 
-  if (!parsed.ok) throw new ScanError(parsed.reason === "not_a_receipt" ? "not_a_receipt" : "scan_failed");
+  if (!parsed.ok) throw new ScanError(parsed.reason === "invalid" ? "scan_failed" : parsed.reason);
   return { ...parsed.receipt, crop };
 }
 
