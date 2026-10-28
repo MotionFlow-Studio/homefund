@@ -1,6 +1,6 @@
 "use client";
 
-import { BarChart3, CalendarDays, Camera, ChartPie, Plus, Receipt, TrendingUp } from "lucide-react";
+import { BarChart3, CalendarDays, Camera, ChartPie, Mic, Plus, Receipt, TrendingUp } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { CategoryBadge } from "@/components/category-badge";
@@ -16,6 +16,8 @@ import { dailySpending, forecast } from "@/lib/forecast";
 import { DailyBars, Donut, PaceChart, useCountUp } from "@/components/charts";
 import { buildFinanceContext } from "@/lib/assistant";
 import { AskCard, InsightsCard } from "./coach";
+import { VoiceSheet } from "./voice-sheet";
+import type { VoiceEntry } from "@/lib/voice-entry";
 import { initials } from "./app-shell";
 import { ExpenseForm } from "./expense-form";
 import { IncomeForm } from "./income-form";
@@ -72,6 +74,8 @@ export function Dashboard({ household, me, settings, fixedCosts }: Props) {
   const shownLeft = useCountUp(budget ? Math.abs(budget.leftMinor) : 0);
   const detail = useMemberDetail(household.id, me.id, me.id);
   const [adding, setAdding] = useState<"expense" | "income" | null>(null);
+  const [listening, setListening] = useState(false);
+  const [spoken, setSpoken] = useState<VoiceEntry | null>(null);
   const expensesLive = useHouseholdExpenses(household.id);
   const incomesLive = useHouseholdIncomes(household.id);
   const recent = [
@@ -108,18 +112,24 @@ export function Dashboard({ household, me, settings, fixedCosts }: Props) {
   const coachContext = buildFinanceContext({ currency, today, budget, forecast: fc, byCategory, expenses: periodExpenses ?? [] });
   const dateLine = new Date(`${today}T12:00:00`).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" });
 
+  const closeForm = () => {
+    setAdding(null);
+    setSpoken(null);
+  };
   if (adding === "expense") {
     return (
       <ExpenseForm
         household={household}
         me={me}
         members={members}
-        onClose={() => setAdding(null)}
+        onClose={closeForm}
         onSaved={(expense) => {
-          setAdding(null);
+          closeForm();
           setSaved({ expense, until: Date.now() + 6000 });
         }}
         onSwitchToIncome={() => setAdding("income")}
+        initial={spoken ?? undefined}
+        heard={spoken?.transcript}
       />
     );
   }
@@ -129,9 +139,11 @@ export function Dashboard({ household, me, settings, fixedCosts }: Props) {
         household={household}
         me={me}
         members={members}
-        onClose={() => setAdding(null)}
-        onSaved={() => setAdding(null)}
+        onClose={closeForm}
+        onSaved={closeForm}
         onSwitchToExpense={() => setAdding("expense")}
+        initial={spoken ? { amountMinor: spoken.amountMinor, source: spoken.incomeSource, note: spoken.note, date: spoken.date } : undefined}
+        heard={spoken?.transcript}
       />
     );
   }
@@ -150,6 +162,15 @@ export function Dashboard({ household, me, settings, fixedCosts }: Props) {
         className="flex h-12 items-center justify-center gap-2 rounded-2xl bg-neutral-900 px-5 font-semibold text-white shadow-sm transition hover:bg-neutral-800 active:scale-[0.98] dark:bg-white dark:text-neutral-900 dark:hover:bg-teal-50"
       >
         <Plus size={20} aria-hidden /> Add expense
+      </button>
+      <button
+        type="button"
+        onClick={() => setListening(true)}
+        aria-label="Say an expense or income"
+        title="Say it"
+        className="flex h-12 items-center justify-center gap-2 rounded-2xl bg-gradient-to-br from-fuchsia-500 to-violet-600 px-4 font-semibold text-white shadow-[0_8px_24px_-8px_rgba(192,38,211,0.7)] transition hover:brightness-110 active:scale-[0.98]"
+      >
+        <Mic size={20} aria-hidden /> <span className="hidden lg:inline">Say it</span>
       </button>
     </>
   );
@@ -250,7 +271,7 @@ export function Dashboard({ household, me, settings, fixedCosts }: Props) {
           </div>
         </section>
 
-        <div className="grid grid-cols-2 gap-3 lg:hidden">{actions}</div>
+        <div className="grid grid-cols-[1fr_1fr_auto] gap-3 lg:hidden">{actions}</div>
 
         <section aria-labelledby="forecast-title" className="card flex flex-col p-6 lg:col-span-5">
           <div className="flex items-center justify-between gap-3">
@@ -440,6 +461,18 @@ export function Dashboard({ household, me, settings, fixedCosts }: Props) {
           <FamilyBudgets household={household} me={me} />
         </div>
       </div>
+
+      {listening ? (
+        <VoiceSheet
+          currency={currency}
+          onClose={() => setListening(false)}
+          onResult={(entry) => {
+            setListening(false);
+            setSpoken(entry);
+            setAdding(entry.kind);
+          }}
+        />
+      ) : null}
 
       {lastSaved ? (
         <div className="pointer-events-none fixed inset-x-0 bottom-[calc(5rem+env(safe-area-inset-bottom))] z-30 px-4 lg:bottom-8 lg:left-64">

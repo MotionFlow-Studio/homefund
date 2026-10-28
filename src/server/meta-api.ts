@@ -131,3 +131,24 @@ export async function readImageAsJson(
 
   return outputText(await response.json());
 }
+
+/**
+ * Writes down what was said, with Muse Voice Transcribe. The audio is a
+ * 16-bit mono WAV at 16 or 24 kHz; it is sent once and not kept.
+ */
+export async function transcribe(wav: Uint8Array, signal: AbortSignal): Promise<string> {
+  const key = env.metaApiKey;
+  if (!key) throw new MetaApiError(0, "META_API_KEY is not set");
+  const form = new FormData();
+  form.append("request", JSON.stringify({ model: "muse-voice-transcribe-1.0", audioEncoding: "WAV" }));
+  form.append("audio", new Blob([wav as Uint8Array<ArrayBuffer>], { type: "audio/wav" }), "speech.wav");
+  const response = await fetch(`${BASE_URL}/asr/transcribe`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${key}`, Accept: "application/json" },
+    body: form,
+    signal,
+  });
+  if (!response.ok) throw new MetaApiError(response.status, "Transcription failed");
+  const body = (await response.json()) as { transcript?: unknown };
+  return typeof body.transcript === "string" ? body.transcript : "";
+}

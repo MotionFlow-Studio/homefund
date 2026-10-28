@@ -15,6 +15,7 @@ export function addManualExpense(input: {
   category: CategoryId;
   spentOn: string;
   note: string;
+  source?: "manual" | "voice";
 }): Promise<Expense> {
   return saveExpense({
     id: newId(),
@@ -25,7 +26,7 @@ export function addManualExpense(input: {
     spentOn: input.spentOn,
     merchant: null,
     note: cleanNote(input.note),
-    source: "manual",
+    source: input.source ?? "manual",
     createdByUserId: input.userId,
   });
 }

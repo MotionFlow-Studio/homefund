@@ -28,6 +28,8 @@ Live app: https://homefund.motionflowstudio.com
 - **Receipt scanning.** Take a photo in the app; the receipt is found, cropped
   and read: shop, date, every line, discounts and the total, each line in a
   category. You check and correct the lines, pick who paid, and save.
+- **Say it.** Tap the microphone and say "groceries at FreshMart, 42 dollars"
+  or "got a 200 dollar bonus": the entry is filled in for you to confirm.
 - **Manual entry** in a few taps, with edit, delete and undo.
 - **One household for the family.** The owner invites another adult with a
   one-time code. Every member has their own payday and budget; a family
@@ -43,12 +45,13 @@ Live app: https://homefund.motionflowstudio.com
 
 ## How Meta models are used
 
-Meta models do the heavy lifting in two places, both run on our
+Meta models do the heavy lifting in three places, all run on our
 server so the API key never reaches the phone.
 
 | Model | Where | What it does |
 |---|---|---|
 | **SAM 3.1** | [`src/server/receipt-scan.ts`](src/server/receipt-scan.ts), [`src/server/meta-api.ts`](src/server/meta-api.ts) | Finds the receipt in the photo (prompt: "receipt") and returns its box, so a small, tilted or off-centre receipt is cut out of the background before it is read. |
+| **Muse Voice Transcribe** | [`src/server/meta-api.ts`](src/server/meta-api.ts), [`src/app/api/voice/route.ts`](src/app/api/voice/route.ts) | Writes down a spoken expense or income (16 kHz WAV made in the browser); Muse Spark 1.3 then turns the sentence into amount, category or income source, a short title and the day. |
 | **Muse Spark 1.3** (coach) | [`src/server/assistant.ts`](src/server/assistant.ts), [`src/app/app/coach.tsx`](src/app/app/coach.tsx) | Reads the pay period's totals (what is left, the pace, categories, last week against the week before, top shops) and writes three insights, or answers a question about the user's money with a verdict: fits, tight, doesn't fit. |
 | **Muse Spark 1.3** (receipts) | [`src/server/receipt-scan.ts`](src/server/receipt-scan.ts), [`src/server/receipt-parse.ts`](src/server/receipt-parse.ts) | Reads the cropped receipt into a strict JSON schema: shop, date, currency, total and every line with its amount, quantity, unit price, kind (item, line discount, receipt discount) and one of ten categories. It also says when a receipt is too blurry to read, instead of guessing. |
 
@@ -91,6 +94,8 @@ categories, in 6–8 seconds each.
 
 ## Privacy
 
+- **Voice recordings are never stored.** They are made in memory, sent once
+  to be written down and wiped when the request ends.
 - **Receipt photos are never stored.** On the phone the photo is turned
   upright, shrunk and re-encoded in memory, which removes all metadata
   (location, camera, time). The server keeps it in memory only: never on
@@ -197,7 +202,6 @@ Other commands:
 
 ## Roadmap
 
-- Voice expense entry with Muse Voice Transcribe
 - Supervised kids' accounts managed by parents
 - Native iOS and Android apps
 

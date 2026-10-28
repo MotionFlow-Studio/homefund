@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, Trash2 } from "lucide-react";
+import { ArrowLeft, Mic, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { addDays, localToday } from "@/lib/budget";
@@ -21,16 +21,26 @@ type Props = {
   onDelete?: (income: Income) => void;
   /** Shown when adding: switches the form back to an expense. */
   onSwitchToExpense?: () => void;
+  /** Values understood from speech, to confirm. */
+  initial?: { amountMinor: number | null; source: IncomeSource | null; note: string | null; date: string | null };
+  /** What was said, shown above the form. */
+  heard?: string;
 };
 
 /** Records money received on top of the pay. It adds to what can be spent until payday. */
-export function IncomeForm({ household, me, members = [], income, onClose, onSaved, onDelete, onSwitchToExpense }: Props) {
+export function IncomeForm({ household, me, members = [], income, onClose, onSaved, onDelete, onSwitchToExpense, initial, heard }: Props) {
   const today = localToday();
-  const [amount, setAmount] = useState(() => (income ? formatAmountInput(income.amountMinor, household.currency) : ""));
-  const [source, setSource] = useState<IncomeSource | null>(income?.source ?? null);
-  const [receivedOn, setReceivedOn] = useState(income?.receivedOn ?? today);
+  const [amount, setAmount] = useState(() =>
+    income
+      ? formatAmountInput(income.amountMinor, household.currency)
+      : initial?.amountMinor
+        ? formatAmountInput(initial.amountMinor, household.currency)
+        : "",
+  );
+  const [source, setSource] = useState<IncomeSource | null>(income?.source ?? initial?.source ?? null);
+  const [receivedOn, setReceivedOn] = useState(income?.receivedOn ?? (initial?.date && initial.date <= today ? initial.date : today));
   const [memberId, setMemberId] = useState(income?.memberId ?? me.id);
-  const [note, setNote] = useState(income?.note ?? "");
+  const [note, setNote] = useState(income?.note ?? initial?.note ?? "");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const amountRef = useRef<HTMLInputElement>(null);
@@ -124,6 +134,15 @@ export function IncomeForm({ household, me, members = [], income, onClose, onSav
         </header>
 
         {onSwitchToExpense ? <KindSwitch kind="income" onSwitch={onSwitchToExpense} /> : null}
+        {heard ? (
+          <p className="flex items-start gap-2 rounded-2xl bg-indigo-500/10 px-4 py-3 text-sm">
+            <Mic size={16} className="mt-0.5 shrink-0 text-indigo-500" aria-hidden />
+            <span>
+              <span className="opacity-60">Heard: </span>“{heard}”
+            </span>
+          </p>
+        ) : null}
+
 
         <label className="flex flex-col items-center gap-2 py-2">
           <span className="text-sm opacity-70">Amount received</span>
