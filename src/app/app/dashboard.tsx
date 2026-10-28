@@ -20,6 +20,7 @@ import { removeExpense, useHouseholdExpenses } from "@/lib/expenses";
 import type { Expense, FixedCost, Household, Member, PaySettings } from "@/lib/model";
 import { useBudget } from "@/lib/use-budget";
 import { ExpenseForm } from "./expense-form";
+import { FamilyBudgets } from "./family-budgets";
 
 type Props = {
   household: Household;
@@ -195,6 +196,8 @@ export function Dashboard({ household, me, settings, fixedCosts, onEditPay, onSi
           <p className="mt-4 text-sm opacity-80">Add your income under “Payday and costs” to see what you can spend.</p>
         ) : null}
       </section>
+      <FamilyBudgets household={household} me={me} />
+
       <section aria-label="Recent expenses" className="rounded-3xl border border-black/10 p-5 dark:border-white/10">
         <div className="flex items-baseline justify-between">
           <h2 className="font-semibold">Recent expenses</h2>
