@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { familyBudgets } from "./family-budget";
+import { categoryTotals, expectedShare, familyBudgets, householdTotals, pace } from "./family-budget";
 import type { Expense, FixedCost, Member, PaySettings } from "./model";
 
 const stamp = { createdAt: "2026-10-01T00:00:00.000Z", updatedAt: "2026-10-01T00:00:00.000Z", deletedAt: null };
@@ -56,5 +56,78 @@ describe("family budgets", () => {
     // Bob: 4500 - 50 = 4450, only spending since the 25th counts, 28 days to 25 Nov
     expect(bob.budget).toMatchObject({ availableMinor: 445_000, spentMinor: 30_000, leftMinor: 415_000, daysLeft: 28 });
     expect(mia.budget).toBeNull();
+  });
+});
+
+describe("pace", () => {
+  const base = { start: "2026-10-10", end: "2026-11-09", nextPayday: "2026-11-10", daysLeft: 13, perDayMinor: 0 };
+  const budget = (spentMinor: number, availableMinor = 310_000) => ({
+    ...base,
+    availableMinor,
+    spentMinor,
+    leftMinor: availableMinor - spentMinor,
+    overspent: availableMinor - spentMinor < 0,
+  });
+
+  it("knows where an even pace would be today", () => {
+    // 31-day period, 28 October is day 19
+    expect(expectedShare(budget(0), "2026-10-28")).toBeCloseTo(19 / 31);
+  });
+
+  it("is on track up to a little ahead of an even pace", () => {
+    expect(pace(budget(150_000), "2026-10-28")).toBe("on_track"); // 48% spent, 61% of the time
+    expect(pace(budget(215_000), "2026-10-28")).toBe("on_track"); // 69%, within slack
+  });
+
+  it("warns when spending runs ahead, and when over budget", () => {
+    expect(pace(budget(240_000), "2026-10-28")).toBe("spending_fast"); // 77%
+    expect(pace(budget(320_000), "2026-10-28")).toBe("over_budget");
+    expect(pace(budget(100, 0), "2026-10-28")).toBe("over_budget");
+  });
+});
+
+describe("household totals", () => {
+  it("adds up everyone with a budget, overspending included", () => {
+    const mk = (availableMinor: number, spentMinor: number, perDayMinor: number) => ({
+      member: member("x", "X"),
+      budget: {
+        start: "2026-10-10", end: "2026-11-09", nextPayday: "2026-11-10", daysLeft: 13,
+        availableMinor, spentMinor, leftMinor: availableMinor - spentMinor, perDayMinor, overspent: spentMinor > availableMinor,
+      },
+    });
+    expect(householdTotals([mk(350_000, 10_000, 26_153), mk(100_000, 120_000, 0), { member: member("m", "Mia"), budget: null }])).toEqual({
+      withBudget: 2,
+      availableMinor: 450_000,
+      spentMinor: 130_000,
+      leftMinor: 320_000,
+      perDayMinor: 26_153,
+    });
+  });
+});
+
+describe("category totals", () => {
+  it("splits receipts by their lines and keeps other expenses whole", () => {
+    const expenses = [
+      { ...expense("anna", 10_507, "2026-10-27"), id: "lidl", category: "groceries" as const },
+      { ...expense("bob", 3_500, "2026-10-26"), id: "bolt", category: "transport" as const },
+      { ...expense("bob", 999, "2026-10-26"), id: "gone", category: "fun" as const, deletedAt: "2026-10-27T00:00:00.000Z" },
+    ];
+    const items = [
+      { expenseId: "lidl", lineTotalMinor: 8_258, category: "groceries" as const, deletedAt: null },
+      { expenseId: "lidl", lineTotalMinor: 999, category: "household" as const, deletedAt: null },
+      { expenseId: "lidl", lineTotalMinor: 1_250, category: "health" as const, deletedAt: null },
+    ];
+    expect(categoryTotals(expenses, items)).toEqual([
+      { category: "groceries", amountMinor: 8_258 },
+      { category: "transport", amountMinor: 3_500 },
+      { category: "health", amountMinor: 1_250 },
+      { category: "household", amountMinor: 999 },
+    ]);
+  });
+
+  it("falls back to the expense when its lines no longer add up", () => {
+    const edited = [{ ...expense("anna", 12_000, "2026-10-27"), id: "lidl" }];
+    const items = [{ expenseId: "lidl", lineTotalMinor: 10_507, category: "household" as const, deletedAt: null }];
+    expect(categoryTotals(edited, items)).toEqual([{ category: "groceries", amountMinor: 12_000 }]);
   });
 });

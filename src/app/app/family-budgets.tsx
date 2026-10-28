@@ -20,8 +20,8 @@ export function FamilyBudgets({ household, me }: { household: Household; me: Mem
         <h2 id="family-title" className="font-semibold">
           Family
         </h2>
-        <Link href="/app/household" className="text-sm font-semibold text-brand">
-          Members
+        <Link href="/app/overview" className="text-sm font-semibold text-brand">
+          Overview
         </Link>
       </div>
       <ul className="mt-3 flex flex-col gap-4">
