@@ -20,6 +20,21 @@ A family budget web app that installs on any phone like a native app. Set your p
 - Only the result is kept: shop, date, amounts, items and categories.
 - The Meta API key stays on the server; the phone never sees it.
 
+## Delete my data
+
+Settings → Delete my data removes the account for good, after the user types
+DELETE to confirm:
+
+- The login account and all its sessions are deleted; every device is signed
+  out and clears what HomeFund kept on it.
+- A household nobody else signs in to is deleted with everything in it.
+- In a shared household, the person's expenses, receipt lines, budget and
+  fixed costs are removed and the others keep using the household. The
+  family's other phones drop these records on their next sync; on the server
+  only an empty marker of each remains (no names, notes or amounts) so that
+  they can. If the person set up the household, the adult who joined first
+  takes it over.
+
 ## Built during the hackathon
 
 Everything in this repository was built from scratch during the Meta Global AI Developer Hackathon (October 27 – November 4, 2026). The first commit is dated October 27, 2026.

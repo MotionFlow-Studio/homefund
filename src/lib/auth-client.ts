@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { localDb, SYNCED_TABLES } from "@/lib/local/db";
+import { DELETE_CONFIRMATION, type DeleteAccountError } from "@/lib/account";
 import type { SignInInput, SignUpInput } from "@/lib/auth-schema";
 
 /*
@@ -48,9 +49,26 @@ async function rememberUser(user: CurrentUser) {
   await localDb().meta.put({ key: USER_KEY, value: JSON.stringify(user) });
 }
 
+/** Who used the device last, kept after their session ends so another person's sign-in starts clean. */
+const PREVIOUS_USER_KEY = "previousUserId";
+
+async function forgetUser() {
+  const user = await cachedUser();
+  if (user) await localDb().meta.put({ key: PREVIOUS_USER_KEY, value: user.id });
+  await localDb().meta.delete(USER_KEY);
+}
+
 export async function cachedUser(): Promise<CurrentUser | null> {
   const entry = await localDb().meta.get(USER_KEY);
   return entry ? (JSON.parse(entry.value) as CurrentUser) : null;
+}
+
+/** Keeps the device's data only if it belongs to the person signing in. */
+async function startSession(user: CurrentUser) {
+  const previous = (await cachedUser())?.id ?? (await localDb().meta.get(PREVIOUS_USER_KEY))?.value;
+  if (previous && previous !== user.id) await clearDeviceData();
+  await localDb().meta.delete(PREVIOUS_USER_KEY);
+  await rememberUser(user);
 }
 
 export async function signUp(
@@ -60,18 +78,14 @@ export async function signUp(
     "/api/auth/signup",
     input,
   );
-  if (result.ok && result.value.user) await rememberUser(result.value.user);
+  if (result.ok && result.value.user) await startSession(result.value.user);
   return result.ok ? { ok: true, value: { status: result.value.status } } : result;
 }
 
 export async function signIn(input: SignInInput): Promise<Result<CurrentUser>> {
   const result = await post<{ user: CurrentUser }>("/api/auth/signin", input);
   if (!result.ok) return result;
-  const previous = await cachedUser();
-  if (previous && previous.id !== result.value.user.id) {
-    await clearDeviceData();
-  }
-  await rememberUser(result.value.user);
+  await startSession(result.value.user);
   return { ok: true, value: result.value.user };
 }
 
@@ -81,6 +95,30 @@ export async function signOut(): Promise<void> {
   await clearDeviceData();
 }
 
+/**
+ * Deletes the account and all its data on the server, then everything
+ * HomeFund keeps on this device. The device is only cleared once the server
+ * confirmed, so a failed attempt can simply be tried again.
+ */
+export async function deleteAccount(): Promise<{ ok: true } | { ok: false; error: DeleteAccountError }> {
+  let response: Response;
+  try {
+    response = await fetch("/api/account", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      credentials: "same-origin",
+      body: JSON.stringify({ confirm: DELETE_CONFIRMATION }),
+    });
+  } catch {
+    return { ok: false, error: "offline" };
+  }
+  if (response.status === 401) return { ok: false, error: "unauthorized" };
+  if (!response.ok) return { ok: false, error: "unknown" };
+  await clearDeviceData();
+  return { ok: true };
+}
+
+/** Removes everything HomeFund keeps on this device. */
 async function clearDeviceData() {
   const db = localDb();
   await db.transaction("rw", [...SYNCED_TABLES.map((t) => db.table(t)), db.outbox, db.meta], async () => {
@@ -96,7 +134,9 @@ export async function loadCurrentUser(): Promise<CurrentUser | null> {
   try {
     const response = await fetch("/api/auth/me", { credentials: "same-origin", cache: "no-store" });
     if (response.status === 401) {
-      await localDb().meta.delete(USER_KEY);
+      const { error } = await response.json().catch(() => ({ error: null }));
+      if (error === "account_gone") await clearDeviceData();
+      else await forgetUser();
       return null;
     }
     if (response.ok) {

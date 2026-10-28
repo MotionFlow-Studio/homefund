@@ -1,15 +1,16 @@
 import type { ButtonHTMLAttributes } from "react";
 
 type Props = ButtonHTMLAttributes<HTMLButtonElement> & {
-  variant?: "primary" | "secondary";
+  variant?: "primary" | "secondary" | "danger";
   loading?: boolean;
 };
 
 export function Button({ variant = "primary", loading, disabled, children, className = "", ...rest }: Props) {
-  const styles =
-    variant === "primary"
-      ? "bg-brand text-white hover:bg-brand-strong"
-      : "border border-black/15 hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/10";
+  const styles = {
+    primary: "bg-brand text-white hover:bg-brand-strong",
+    secondary: "border border-black/15 hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/10",
+    danger: "bg-red-600 text-white hover:bg-red-700",
+  }[variant];
   return (
     <button
       disabled={disabled || loading}

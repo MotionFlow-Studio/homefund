@@ -1,13 +1,15 @@
 "use client";
 
-import { ArrowLeft, ChevronRight, LogOut } from "lucide-react";
+import { ArrowLeft, ChevronRight, LogOut, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
 import { CurrencyPicker } from "@/components/currency-picker";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
-import { signOut, useCurrentUser, type CurrentUser } from "@/lib/auth-client";
+import { DELETE_CONFIRMATION, DELETE_ERROR_TEXT } from "@/lib/account";
+import { deleteAccount, signOut, useCurrentUser, type CurrentUser } from "@/lib/auth-client";
+import { useHouseholdMembers } from "@/lib/expenses";
 import { changeHouseholdCurrency, renameHousehold, renameMember, useMyHousehold } from "@/lib/household";
 import { requestSync } from "@/lib/local/sync-status";
 import { pendingChanges } from "@/lib/local/store";
@@ -133,6 +135,8 @@ function Settings({ user, household, me }: { user: CurrentUser; household: House
       </Section>
 
       <SignOut onSignedOut={() => router.replace("/signin")} />
+
+      <DeleteData household={household} me={me} />
     </main>
   );
 }
@@ -287,6 +291,110 @@ function SignOut({ onSignedOut }: { onSignedOut: () => void }) {
         <LogOut size={18} aria-hidden className="mr-2" />
         {unsynced > 0 ? "Sign out anyway" : "Sign out"}
       </Button>
+    </section>
+  );
+}
+
+/** Permanently deletes the account and its data, after spelling out what goes and what stays. */
+function DeleteData({ household, me }: { household: Household; me: Member }) {
+  const members = useHouseholdMembers(household.id) ?? [];
+  const [open, setOpen] = useState(false);
+  const [typed, setTyped] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // The adult who joined first takes over the household, as on the server.
+  const othersWithAccount = members
+    .filter((m) => m.userId !== null && m.id !== me.id)
+    .sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id));
+  const shared = othersWithAccount.length > 0;
+  const withoutAccount = members.filter((m) => m.userId === null).length;
+  const confirmed = typed.trim().toUpperCase() === DELETE_CONFIRMATION;
+
+  async function run() {
+    setBusy(true);
+    setError(null);
+    const result = await deleteAccount();
+    if (!result.ok) {
+      setBusy(false);
+      return setError(DELETE_ERROR_TEXT[result.error]);
+    }
+    // A full page load, so nothing of the old session stays in memory.
+    window.location.replace("/deleted");
+  }
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="mx-auto flex items-center gap-2 py-2 text-sm font-medium text-red-600 dark:text-red-400"
+      >
+        <Trash2 size={16} aria-hidden /> Delete my data
+      </button>
+    );
+  }
+
+  return (
+    <section
+      aria-labelledby="delete-title"
+      className="flex flex-col gap-4 rounded-3xl border border-red-600/30 p-5 dark:border-red-400/30"
+    >
+      <h2 id="delete-title" className="font-semibold text-red-700 dark:text-red-400">
+        Delete my data
+      </h2>
+      <ul className="flex list-disc flex-col gap-2 pl-5 text-sm">
+        <li>Your account is deleted and you are signed out on every device.</li>
+        {shared ? (
+          <>
+            <li>
+              Your expenses, your budget and your fixed costs are removed. {household.name} stays for the others, and
+              your spending no longer counts in the family&apos;s numbers.
+            </li>
+            {me.role === "owner" ? <li>{othersWithAccount[0].name} will manage the household from now on.</li> : null}
+          </>
+        ) : (
+          <li>
+            {household.name} is deleted with every expense, receipt line and budget in it
+            {withoutAccount > 0
+              ? `, including ${withoutAccount} family ${withoutAccount === 1 ? "member" : "members"} without an account`
+              : ""}
+            .
+          </li>
+        )}
+        <li>Everything HomeFund keeps on this phone is removed too.</li>
+        <li className="font-medium">This cannot be undone.</li>
+      </ul>
+      <Field
+        label={`Type ${DELETE_CONFIRMATION} to confirm`}
+        name="confirm-delete"
+        value={typed}
+        autoComplete="off"
+        autoCapitalize="characters"
+        spellCheck={false}
+        onChange={(e) => setTyped(e.target.value)}
+      />
+      {error ? (
+        <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+          {error}
+        </p>
+      ) : null}
+      <div className="grid grid-cols-2 gap-3">
+        <Button
+          variant="secondary"
+          onClick={() => {
+            setOpen(false);
+            setTyped("");
+            setError(null);
+          }}
+          disabled={busy}
+        >
+          Cancel
+        </Button>
+        <Button variant="danger" onClick={run} loading={busy} disabled={!confirmed}>
+          Delete forever
+        </Button>
+      </div>
     </section>
   );
 }

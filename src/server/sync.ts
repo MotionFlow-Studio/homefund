@@ -162,20 +162,26 @@ async function push(userId: string, changes: ChangeSet): Promise<number> {
       applied++;
     }
 
-    const memberHousehold = async (memberId: string) => {
-      const [row] = await tx.select({ householdId: members.householdId }).from(members).where(eq(members.id, memberId));
-      return row?.householdId;
+    // Records of a removed member can still be deleted, but nothing new can
+    // be booked to them (a phone that was offline might try).
+    const memberHousehold = async (memberId: string, record: { deletedAt?: string | null }) => {
+      const [row] = await tx
+        .select({ householdId: members.householdId, deletedAt: members.deletedAt })
+        .from(members)
+        .where(eq(members.id, memberId));
+      if (!row || (row.deletedAt !== null && !record.deletedAt)) return undefined;
+      return row.householdId;
     };
 
     for (const settings of valid(paySettingsSchema, changes.paySettings)) {
-      const householdId = await memberHousehold(settings.memberId);
+      const householdId = await memberHousehold(settings.memberId, {});
       if (!householdId || !allowed.has(householdId)) continue;
       await upsertLatest(tx, paySettings, "memberId", settings);
       applied++;
     }
 
     for (const cost of valid(fixedCostSchema, changes.fixedCosts)) {
-      const householdId = await memberHousehold(cost.memberId);
+      const householdId = await memberHousehold(cost.memberId, cost);
       if (!householdId || !allowed.has(householdId)) continue;
       const [existing] = await tx.select({ memberId: fixedCosts.memberId }).from(fixedCosts).where(eq(fixedCosts.id, cost.id));
       if (existing && existing.memberId !== cost.memberId) continue;
@@ -185,7 +191,7 @@ async function push(userId: string, changes: ChangeSet): Promise<number> {
 
     for (const expense of valid(expenseSchema, changes.expenses)) {
       if (!allowed.has(expense.householdId)) continue;
-      if ((await memberHousehold(expense.memberId)) !== expense.householdId) continue;
+      if ((await memberHousehold(expense.memberId, expense)) !== expense.householdId) continue;
       const [existing] = await tx.select({ householdId: expenses.householdId }).from(expenses).where(eq(expenses.id, expense.id));
       if (existing && existing.householdId !== expense.householdId) continue;
       await upsertLatest(tx, expenses, "id", expense);
@@ -207,23 +213,31 @@ async function push(userId: string, changes: ChangeSet): Promise<number> {
 
 /** Everything changed in the user's households since the cursor. */
 async function pull(userId: string, cursor: number): Promise<SyncResponse> {
-  const allowed = [...(await householdsOf(db, userId))];
+  // All tables are read from one snapshot. Read separately, a write that
+  // commits in between could show up in one table and not yet in another,
+  // and the cursor would move past the part that was missed.
+  return db.transaction((tx) => pullSnapshot(tx, userId, cursor), {
+    isolationLevel: "repeatable read",
+    accessMode: "read only",
+  });
+}
+
+async function pullSnapshot(tx: Tx, userId: string, cursor: number): Promise<SyncResponse> {
+  const allowed = [...(await householdsOf(tx, userId))];
   if (allowed.length === 0) {
     return { cursor: String(cursor), more: false, changes: {} };
   }
 
-  const memberIds = db.select({ id: members.id }).from(members).where(inArray(members.householdId, allowed));
-  const expenseIds = db.select({ id: expenses.id }).from(expenses).where(inArray(expenses.householdId, allowed));
+  const memberIds = tx.select({ id: members.id }).from(members).where(inArray(members.householdId, allowed));
+  const expenseIds = tx.select({ id: expenses.id }).from(expenses).where(inArray(expenses.householdId, allowed));
 
   const since = (serverSeq: AnyPgColumn) => gt(serverSeq, cursor);
-  const [h, m, p, f, e, r] = await Promise.all([
-    db.select().from(households).where(and(inArray(households.id, allowed), since(households.serverSeq))).orderBy(households.serverSeq).limit(PULL_LIMIT),
-    db.select().from(members).where(and(inArray(members.householdId, allowed), since(members.serverSeq))).orderBy(members.serverSeq).limit(PULL_LIMIT),
-    db.select().from(paySettings).where(and(inArray(paySettings.memberId, memberIds), since(paySettings.serverSeq))).orderBy(paySettings.serverSeq).limit(PULL_LIMIT),
-    db.select().from(fixedCosts).where(and(inArray(fixedCosts.memberId, memberIds), since(fixedCosts.serverSeq))).orderBy(fixedCosts.serverSeq).limit(PULL_LIMIT),
-    db.select().from(expenses).where(and(inArray(expenses.householdId, allowed), since(expenses.serverSeq))).orderBy(expenses.serverSeq).limit(PULL_LIMIT),
-    db.select().from(receiptItems).where(and(inArray(receiptItems.expenseId, expenseIds), since(receiptItems.serverSeq))).orderBy(receiptItems.serverSeq).limit(PULL_LIMIT),
-  ]);
+  const h = await tx.select().from(households).where(and(inArray(households.id, allowed), since(households.serverSeq))).orderBy(households.serverSeq).limit(PULL_LIMIT);
+  const m = await tx.select().from(members).where(and(inArray(members.householdId, allowed), since(members.serverSeq))).orderBy(members.serverSeq).limit(PULL_LIMIT);
+  const p = await tx.select().from(paySettings).where(and(inArray(paySettings.memberId, memberIds), since(paySettings.serverSeq))).orderBy(paySettings.serverSeq).limit(PULL_LIMIT);
+  const f = await tx.select().from(fixedCosts).where(and(inArray(fixedCosts.memberId, memberIds), since(fixedCosts.serverSeq))).orderBy(fixedCosts.serverSeq).limit(PULL_LIMIT);
+  const e = await tx.select().from(expenses).where(and(inArray(expenses.householdId, allowed), since(expenses.serverSeq))).orderBy(expenses.serverSeq).limit(PULL_LIMIT);
+  const r = await tx.select().from(receiptItems).where(and(inArray(receiptItems.expenseId, expenseIds), since(receiptItems.serverSeq))).orderBy(receiptItems.serverSeq).limit(PULL_LIMIT);
 
   // A table that hit the limit may have more rows after its last one. The new
   // cursor must not pass that row, or the rest would never be sent; rows of

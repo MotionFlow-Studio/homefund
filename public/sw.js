@@ -5,7 +5,7 @@
  * - API calls are never cached; data lives in the device database instead.
  */
 
-const VERSION = "v7";
+const VERSION = "v8";
 const PAGES = `pages-${VERSION}`;
 const ASSETS = `assets-${VERSION}`;
 const APP_SHELL = ["/", "/app", "/app/expenses", "/app/scan", "/app/household", "/app/overview", "/app/member", "/app/settings", "/join", "/signin", "/signup"];
