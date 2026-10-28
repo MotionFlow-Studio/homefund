@@ -152,16 +152,18 @@ export function Dashboard({ household, me, settings, fixedCosts }: Props) {
     <>
       <Link
         href="/app/scan"
+        aria-label="Scan receipt"
         className="flex h-12 items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-teal-500 to-indigo-500 px-5 font-semibold text-white shadow-[0_8px_24px_-8px_rgba(13,148,136,0.7)] transition hover:brightness-110 active:scale-[0.98]"
       >
-        <Camera size={20} aria-hidden /> Scan receipt
+        <Camera size={20} aria-hidden /> Scan<span className="hidden sm:inline">&nbsp;receipt</span>
       </Link>
       <button
         type="button"
         onClick={() => setAdding("expense")}
+        aria-label="Add expense"
         className="flex h-12 items-center justify-center gap-2 rounded-2xl bg-neutral-900 px-5 font-semibold text-white shadow-sm transition hover:bg-neutral-800 active:scale-[0.98] dark:bg-white dark:text-neutral-900 dark:hover:bg-teal-50"
       >
-        <Plus size={20} aria-hidden /> Add expense
+        <Plus size={20} aria-hidden /> Add<span className="hidden sm:inline">&nbsp;expense</span>
       </button>
       <button
         type="button"

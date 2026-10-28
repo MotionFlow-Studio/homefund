@@ -1,4 +1,5 @@
 import {
+  ArrowDownLeft,
   ArrowRight,
   CalendarClock,
   Camera,
@@ -10,9 +11,11 @@ import {
   KeyRound,
   Lock,
   MapPinOff,
+  Mic,
   ScanLine,
   Smartphone,
   Sparkles,
+  TrendingUp,
   Trash2,
   Users,
 } from "lucide-react";
@@ -132,7 +135,7 @@ export default function Landing() {
           <div className="hero-in">
             <Pill>
               <Sparkles size={15} className="text-amber-300" aria-hidden />
-              Receipts read by Meta SAM 3.1 and Muse Spark 1.3
+              Powered by Meta SAM 3.1, Muse Spark 1.3 and Muse Voice Transcribe
             </Pill>
             <h1 className="mt-7 text-5xl leading-[0.98] font-bold tracking-[-0.035em] text-balance sm:text-7xl">
               Know what&apos;s left.{" "}
@@ -256,6 +259,33 @@ export default function Landing() {
               Every line read, sorted into categories and checked against the printed total. Discounts and bottle deposits
               land in the right place.
             </Tile>
+            <Tile
+              icon={<Sparkles size={22} />}
+              title="A money coach that knows your numbers"
+              className="md:col-span-3"
+              visual={
+                <div className="mt-5 rounded-2xl bg-white/[0.05] p-4 text-sm">
+                  <p className="ml-auto w-fit rounded-2xl rounded-br-md bg-gradient-to-r from-teal-500 to-indigo-500 px-3 py-2 text-white">Can I spend $300 on a weekend trip?</p>
+                  <p className="mt-2 w-fit max-w-[90%] rounded-2xl rounded-bl-md bg-white/10 px-3 py-2 text-white/85">
+                    <span className="mr-1.5 rounded-full bg-emerald-400/20 px-2 py-0.5 text-xs font-semibold text-emerald-300">Fits</span>
+                    You&apos;d have $5,107.50 left, about $392.88 a day until payday.
+                  </p>
+                </div>
+              }
+            >
+              Muse Spark 1.3 reads your pay period and writes three insights a day. Ask it anything about your own money.
+            </Tile>
+            <Tile icon={<Mic size={22} />} title="Just say it" className="md:col-span-3">
+              &ldquo;Groceries at FreshMart, 42 dollars.&rdquo; Muse Voice Transcribe writes it down and the expense is filled in
+              for you to confirm.
+            </Tile>
+            <Tile icon={<TrendingUp size={22} />} title="Payday forecast" className="md:col-span-3">
+              See where today&apos;s pace leads: what will be left on payday, or the day the money runs out, while there is
+              still time to change it.
+            </Tile>
+            <Tile icon={<ArrowDownLeft size={22} />} title="Money in, too" className="md:col-span-3">
+              Bonuses, side jobs, refunds and gifts add to what you can spend until payday, instantly.
+            </Tile>
             <Tile icon={<Users size={22} />} title="One household" className="md:col-span-3">
               Invite your partner with a one-time code. Everyone keeps their own payday and daily number; the family overview
               shows the whole picture.
@@ -277,7 +307,7 @@ export default function Landing() {
             >
               Written the way you write it.
             </Tile>
-            <Tile icon={<Smartphone size={22} />} title="On every phone" className="md:col-span-2">
+            <Tile icon={<Smartphone size={22} />} title="On every phone and computer" className="md:col-span-2">
               Installs from the browser on iPhone and Android in seconds. No app store, no updates to wait for.
             </Tile>
           </div>
