@@ -62,18 +62,17 @@ function Ready({
   signingOut: boolean;
 }) {
   const pay = usePaySettings(me.id);
-  const [editingPay, setEditingPay] = useState(false);
 
   if (pay.status === "loading") return <Loading />;
-  if (!pay.settings || editingPay) {
+  // First run: set the payday. Later changes are made in Settings.
+  if (!pay.settings) {
     return (
       <PaySetup
         memberId={me.id}
         currency={household.currency}
-        settings={pay.settings}
+        settings={null}
         fixedCosts={pay.fixedCosts}
-        onDone={() => setEditingPay(false)}
-        onCancel={pay.settings ? () => setEditingPay(false) : undefined}
+        onDone={() => undefined}
       />
     );
   }
@@ -84,7 +83,6 @@ function Ready({
       me={me}
       settings={pay.settings}
       fixedCosts={pay.fixedCosts}
-      onEditPay={() => setEditingPay(true)}
       onSignOut={onSignOut}
       signingOut={signingOut}
     />

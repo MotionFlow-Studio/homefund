@@ -5,10 +5,10 @@
  * - API calls are never cached; data lives in the device database instead.
  */
 
-const VERSION = "v6";
+const VERSION = "v7";
 const PAGES = `pages-${VERSION}`;
 const ASSETS = `assets-${VERSION}`;
-const APP_SHELL = ["/", "/app", "/app/expenses", "/app/scan", "/app/household", "/app/overview", "/app/member", "/join", "/signin", "/signup"];
+const APP_SHELL = ["/", "/app", "/app/expenses", "/app/scan", "/app/household", "/app/overview", "/app/member", "/app/settings", "/join", "/signin", "/signup"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(

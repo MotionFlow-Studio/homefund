@@ -5,6 +5,7 @@ import {
   formatMoney,
   fromMinor,
   isCurrency,
+  rescaleMinor,
   toMinor,
 } from "@/lib/money";
 
@@ -72,5 +73,17 @@ describe("currency decimals are the same everywhere", () => {
     expect(currencyDecimals("BHD")).toBe(3);
     expect(toMinor("49,97", "HUF")).toBe(4997);
     expect(formatMoney(4997, "HUF")).toContain("49.97");
+  });
+});
+
+describe("rescaleMinor", () => {
+  it("keeps the number when the currency changes", () => {
+    expect(rescaleMinor(4997, "RON", "EUR")).toBe(4997);
+    expect(rescaleMinor(4997, "RON", "JPY")).toBe(50);
+    expect(rescaleMinor(4949, "RON", "JPY")).toBe(49);
+    expect(rescaleMinor(4950, "RON", "JPY")).toBe(50);
+    expect(rescaleMinor(4997, "RON", "KWD")).toBe(49970);
+    expect(rescaleMinor(50, "JPY", "EUR")).toBe(5000);
+    expect(rescaleMinor(0, "EUR", "JPY")).toBe(0);
   });
 });

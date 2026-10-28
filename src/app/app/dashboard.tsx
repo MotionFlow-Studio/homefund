@@ -27,7 +27,6 @@ type Props = {
   me: Member;
   settings: PaySettings;
   fixedCosts: FixedCost[];
-  onEditPay: () => void;
   onSignOut: () => void;
   signingOut: boolean;
 };
@@ -40,7 +39,7 @@ function paydayLabel(date: string) {
   });
 }
 
-export function Dashboard({ household, me, settings, fixedCosts, onEditPay, onSignOut, signingOut }: Props) {
+export function Dashboard({ household, me, settings, fixedCosts, onSignOut, signingOut }: Props) {
   const budget = useBudget(me.id, settings, fixedCosts);
   const [adding, setAdding] = useState(false);
   const recent = (useHouseholdExpenses(household.id) ?? []).slice(0, 5);
@@ -97,13 +96,12 @@ export function Dashboard({ household, me, settings, fixedCosts, onEditPay, onSi
             {initials}
           </summary>
           <div className="absolute right-0 z-10 mt-2 w-60 overflow-hidden rounded-2xl border border-black/10 bg-white shadow-lg dark:border-white/10 dark:bg-neutral-900">
-            <button
-              type="button"
-              onClick={onEditPay}
+            <Link
+              href="/app/settings"
               className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-black/5 dark:hover:bg-white/10"
             >
-              <Settings2 size={18} /> Payday and costs
-            </button>
+              <Settings2 size={18} /> Settings
+            </Link>
             <Link
               href="/app/household"
               className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-black/5 dark:hover:bg-white/10"
@@ -190,8 +188,11 @@ export function Dashboard({ household, me, settings, fixedCosts, onEditPay, onSi
 
         {budget.availableMinor < 0 ? (
           <p role="alert" className="mt-4 rounded-xl bg-red-50 p-3 text-sm font-medium text-red-700 dark:bg-red-950/40 dark:text-red-300">
-            Your fixed costs and savings are {money(-budget.availableMinor)} more than your income. Check them under
-            “Payday and costs”.
+            Your fixed costs and savings are {money(-budget.availableMinor)} more than your income. Check them in{" "}
+            <Link href="/app/settings" className="underline">
+              Settings
+            </Link>
+            .
           </p>
         ) : budget.overspent ? (
           <p role="alert" className="mt-4 rounded-xl bg-red-50 p-3 text-sm font-medium text-red-700 dark:bg-red-950/40 dark:text-red-300">
@@ -199,7 +200,11 @@ export function Dashboard({ household, me, settings, fixedCosts, onEditPay, onSi
             {paydayLabel(budget.nextPayday)}.
           </p>
         ) : budget.availableMinor === 0 ? (
-          <p className="mt-4 text-sm opacity-80">Add your income under “Payday and costs” to see what you can spend.</p>
+          <p className="mt-4 text-sm opacity-80">Add your income in{" "}
+            <Link href="/app/settings" className="font-semibold text-brand">
+              Settings
+            </Link>{" "}
+            to see what you can spend.</p>
         ) : null}
       </section>
       <FamilyBudgets household={household} me={me} />

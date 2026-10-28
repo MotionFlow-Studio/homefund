@@ -21,7 +21,7 @@ type Props = {
 
 const DAYS = Array.from({ length: 31 }, (_, i) => i + 1);
 
-function ordinal(day: number) {
+export function ordinal(day: number) {
   const s = ["th", "st", "nd", "rd"];
   const v = day % 100;
   return day + (s[(v - 20) % 10] || s[v] || s[0]);

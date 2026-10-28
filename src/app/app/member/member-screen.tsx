@@ -90,7 +90,13 @@ function MemberDetails({ household, me, memberId }: { household: Household; me: 
       <section aria-label="Budget">
         <MemberBudgetCard as="div" showName={false} entry={entry} isMe={isMe} money={money} today={today} />
         {!budget && isMe ? (
-          <p className="mt-2 text-sm opacity-70">Set your payday from the menu on the home screen (Payday and costs).</p>
+          <p className="mt-2 text-sm opacity-70">
+            Set your payday in{" "}
+            <Link href="/app/settings" className="font-semibold text-brand">
+              Settings
+            </Link>
+            .
+          </p>
         ) : null}
       </section>
 

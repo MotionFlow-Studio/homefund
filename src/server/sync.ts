@@ -108,8 +108,19 @@ async function push(userId: string, changes: ChangeSet): Promise<number> {
     const incomingMembers = valid(memberSchema, changes.members);
     const createdHouseholds = new Set<string>();
 
-    // Households: existing ones the user belongs to, or brand-new ones the user creates as owner.
+    const ownerOf = new Set(
+      (
+        await tx
+          .select({ householdId: members.householdId })
+          .from(members)
+          .where(and(eq(members.userId, userId), eq(members.role, "owner"), isNull(members.deletedAt)))
+      ).map((r) => r.householdId),
+    );
+
+    // Households: brand-new ones the user creates as owner, or changes (name,
+    // currency) by the owner. Other members cannot change the household.
     for (const household of valid(householdSchema, changes.households)) {
+      if (allowed.has(household.id) && !ownerOf.has(household.id)) continue;
       if (!allowed.has(household.id)) {
         const [existing] = await tx.select({ id: households.id }).from(households).where(eq(households.id, household.id));
         const createsAsOwner = incomingMembers.some(
@@ -128,14 +139,6 @@ async function push(userId: string, changes: ChangeSet): Promise<number> {
     // household, adults only by joining with an invite. A member's account
     // link can only be set to the user's own account, and only the owner may
     // unlink or remove someone else's account.
-    const ownerOf = new Set(
-      (
-        await tx
-          .select({ householdId: members.householdId })
-          .from(members)
-          .where(and(eq(members.userId, userId), eq(members.role, "owner"), isNull(members.deletedAt)))
-      ).map((r) => r.householdId),
-    );
     for (const member of incomingMembers) {
       if (!allowed.has(member.householdId)) continue;
       const [existing] = await tx

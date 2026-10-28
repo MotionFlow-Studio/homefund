@@ -108,3 +108,16 @@ export function formatMoneyParts(
   }
   return out.map((p) => ({ ...p, value: p.type === "symbol" ? p.value.trim() : p.value }));
 }
+
+/**
+ * Re-expresses an amount in another currency's smallest unit, keeping the
+ * number the same: 49.97 RON (4997) -> 49.97 EUR (4997), -> 50 JPY (50),
+ * -> 49.970 KWD (49970). Used when a household corrects its currency; it is
+ * not an exchange-rate conversion. Rounds half up when decimals are dropped.
+ */
+export function rescaleMinor(minor: number, from: Currency, to: Currency): number {
+  const shift = currencyDecimals(to) - currencyDecimals(from);
+  if (shift >= 0) return minor * 10 ** shift;
+  const factor = 10 ** -shift;
+  return Math.sign(minor) * Math.floor((Math.abs(minor) + factor / 2) / factor);
+}
