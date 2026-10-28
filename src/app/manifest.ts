@@ -27,8 +27,8 @@ export default function manifest(): MetadataRoute.Manifest {
       },
     ],
     screenshots: [
-      { src: "/screenshots/home.jpg", sizes: "1170x1992", type: "image/jpeg", form_factor: "narrow", label: "What is left until payday" },
-      { src: "/screenshots/receipt.jpg", sizes: "1170x1992", type: "image/jpeg", form_factor: "narrow", label: "A receipt read line by line" },
+      { src: "/screenshots/home.jpg", sizes: "1170x2532", type: "image/jpeg", form_factor: "narrow", label: "What is left until payday" },
+      { src: "/screenshots/receipt.jpg", sizes: "1170x2532", type: "image/jpeg", form_factor: "narrow", label: "A receipt read line by line" },
     ],
   };
 }

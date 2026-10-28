@@ -18,6 +18,7 @@ const ALLOWED_IMAGES = [
   /^public\/icons\/[\w-]+\.png$/,
   /^public\/splash\/\d+x\d+\.png$/,
   /^public\/screenshots\/[\w-]+\.jpg$/,
+  /^public\/landing\/[\w-]+\.webp$/,
   /^src\/app\/(apple-icon\.png|icon\.svg)$/,
   /^test\/fixtures\/receipt-[\w-]+\.jpg$/,
 ];

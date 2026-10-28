@@ -73,3 +73,82 @@ body {
     animation-duration: 0s;
   }
 }
+
+/* Landing page motion. Everything here is decoration and switches off with reduced motion. */
+html:has(.landing) {
+  scroll-behavior: smooth;
+}
+
+@keyframes float {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+  50% {
+    translate: 0 -14px;
+  }
+}
+
+@keyframes glow-drift {
+  0%,
+  100% {
+    opacity: 0.85;
+    scale: 1;
+  }
+  50% {
+    opacity: 1;
+    scale: 1.08;
+  }
+}
+
+@keyframes hero-in {
+  from {
+    opacity: 0;
+    translate: 0 24px;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+
+.landing .float {
+  animation: float 7s ease-in-out infinite;
+}
+.landing .float-slow {
+  animation: float 9s ease-in-out infinite;
+  animation-delay: -3s;
+}
+.landing .float-delay {
+  animation: float 8s ease-in-out infinite;
+  animation-delay: -5s;
+}
+.landing .glow {
+  animation: glow-drift 12s ease-in-out infinite;
+}
+.landing .hero-in {
+  animation: hero-in 0.9s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+/* Sections rise into place as they scroll in, where the browser supports it. */
+@supports (animation-timeline: view()) {
+  .landing .reveal {
+    animation: hero-in linear both;
+    animation-timeline: view();
+    animation-range: entry 0% entry 60%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing .float,
+  .landing .float-slow,
+  .landing .float-delay,
+  .landing .glow,
+  .landing .hero-in,
+  .landing .reveal {
+    animation: none;
+  }
+  html:has(.landing) {
+    scroll-behavior: auto;
+  }
+}

@@ -95,8 +95,8 @@ categories, in 6–8 seconds each.
   budget and spending, not each other's income.
 - **Checked, not just promised.** `npm run check:leaks` verifies that no key
   and no receipt photo is in the repository, its full git history or the code
-  sent to browsers. The only images in the repository are the app artwork and
-  the three self-made test receipts.
+  sent to browsers. The only images in the repository are the app artwork,
+  screenshots of the app with demo data and the three self-made test receipts.
 - **Delete my data.** Settings → Delete my data removes everything for good
   after the user types DELETE:
   - the login account and all its sessions; every signed-in device clears
