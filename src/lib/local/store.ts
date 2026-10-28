@@ -91,6 +91,35 @@ export function saveReceiptItem(draft: Draft<ReceiptItem>) {
   return saveRecord("receiptItems", draft);
 }
 
+/**
+ * Saves an expense together with its receipt lines in one transaction, so a
+ * receipt is never stored half way.
+ */
+export async function saveExpenseWithItems(expense: Draft<Expense>, items: Draft<ReceiptItem>[]): Promise<Expense> {
+  const db = localDb();
+  const timestamp = now();
+
+  const saved = await db.transaction("rw", [db.expenses, db.receiptItems, db.outbox], async () => {
+    const record: Expense = {
+      ...expense,
+      createdAt: expense.createdAt ?? timestamp,
+      updatedAt: timestamp,
+      deletedAt: null,
+    };
+    await db.expenses.put(record);
+    await db.outbox.put({ key: `expenses:${record.id}`, table: "expenses", recordId: record.id, queuedAt: timestamp });
+
+    for (const draft of items) {
+      const item: ReceiptItem = { ...draft, createdAt: draft.createdAt ?? timestamp, updatedAt: timestamp, deletedAt: null };
+      await db.receiptItems.put(item);
+      await db.outbox.put({ key: `receiptItems:${item.id}`, table: "receiptItems", recordId: item.id, queuedAt: timestamp });
+    }
+    return record;
+  });
+  notifyChanged();
+  return saved;
+}
+
 export function deleteExpense(id: string) {
   return deleteRecord("expenses", id);
 }

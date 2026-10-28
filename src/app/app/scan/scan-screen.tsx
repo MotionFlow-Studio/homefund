@@ -3,17 +3,15 @@
 import { RotateCcw, ScanLine } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { CategoryBadge } from "@/components/category-badge";
-import { ReceiptCheckNotice } from "@/components/receipt-check-notice";
 import { Button } from "@/components/ui/button";
 import { useCurrentUser } from "@/lib/auth-client";
 import { useMyHousehold } from "@/lib/household";
-import { formatMoney } from "@/lib/money";
 import type { Household, Member } from "@/lib/model";
 import type { ReceiptScan } from "@/lib/receipt";
 import { SCAN_ERROR_TEXT, scanReceiptPhoto, type ScanFailure } from "@/lib/receipt-client";
 import { ExpenseForm } from "../expense-form";
 import { Camera } from "./camera";
+import { ReceiptReview } from "./receipt-review";
 
 export function ScanScreen() {
   const router = useRouter();
@@ -120,10 +118,12 @@ function ScanFlow({ household, me }: { household: Household; me: Member }) {
       return <ExpenseForm household={household} me={me} onClose={close} onSaved={close} />;
     case "read":
       return (
-        <ReadResult
+        <ReceiptReview
           receipt={stage.receipt}
-          onAgain={() => setStage({ name: "camera" })}
-          onDone={close}
+          household={household}
+          me={me}
+          onSaved={close}
+          onDiscard={() => setStage({ name: "camera" })}
         />
       );
   }
@@ -174,59 +174,5 @@ function ReadingStatus() {
     <p role="status" className="text-center text-lg font-semibold">
       {READING_STEPS[step]}
     </p>
-  );
-}
-
-/** What was read from the receipt. */
-function ReadResult({
-  receipt,
-  onAgain,
-  onDone,
-}: {
-  receipt: ReceiptScan;
-  onAgain: () => void;
-  onDone: () => void;
-}) {
-  const money = (minor: number) => formatMoney(minor, receipt.currency);
-  const date = receipt.spentOn
-    ? new Date(`${receipt.spentOn}T00:00:00`).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
-    : null;
-
-  return (
-    <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-5 px-4 pt-[max(1.5rem,env(safe-area-inset-top))] pb-10">
-      <header>
-        <p className="text-sm font-medium opacity-70">{[receipt.merchant, date].filter(Boolean).join(" · ") || "Receipt"}</p>
-        <h1 className="mt-1 text-4xl font-bold tabular-nums">{money(receipt.totalMinor ?? receipt.itemsTotalMinor)}</h1>
-        {receipt.savedMinor > 0 ? (
-          <p className="mt-1 text-sm font-medium text-brand">You saved {money(receipt.savedMinor)}</p>
-        ) : null}
-      </header>
-
-      <ReceiptCheckNotice check={receipt.check} currency={receipt.currency} />
-
-      <ul className="divide-y divide-black/5 rounded-3xl border border-black/10 dark:divide-white/10 dark:border-white/10">
-        {receipt.items.map((item, index) => (
-          <li key={index} className="flex items-center gap-3 px-4 py-3">
-            <CategoryBadge category={item.category} showLabel={false} size="sm" />
-            <div className="min-w-0 flex-1">
-              <p className="truncate font-medium">{item.name}</p>
-              {item.quantityMilli !== 1000 && item.unitPrice ? (
-                <p className="text-xs opacity-60">
-                  {item.quantityMilli / 1000} × {item.unitPrice}
-                </p>
-              ) : null}
-            </div>
-            <span className="font-semibold tabular-nums">{money(item.lineTotalMinor)}</span>
-          </li>
-        ))}
-      </ul>
-
-      <div className="flex flex-col gap-3">
-        <Button onClick={onDone}>Done</Button>
-        <Button variant="secondary" onClick={onAgain}>
-          Scan another receipt
-        </Button>
-      </div>
-    </main>
   );
 }
