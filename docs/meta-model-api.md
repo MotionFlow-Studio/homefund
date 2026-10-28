@@ -83,6 +83,22 @@ groceries / household / kids) was exactly right with `low` effort.
 - No server timeout is documented; HomeFund aborts after 30 s and offers
   manual entry.
 
+## Our endpoint: `POST /api/receipt/scan`
+
+- Multipart form: `image` (JPEG, PNG or WebP, max 10 MB) and `currency`
+  (household currency, used when the receipt prints none).
+- Only for signed-in users, only from our own origin.
+- Limits: one scan at a time per user, 6 per minute and 60 per day per user,
+  1,000 per day for the whole server. Over the limit: `429` with `Retry-After`.
+- 30 s timeout (`504 timeout`). Photos that are not receipts: `422 not_a_receipt`.
+  Unreadable files: `415 unsupported_image`.
+- The server turns the photo upright, strips its metadata and never stores it.
+  If SAM finds no receipt box, the whole photo is read.
+- Discounts printed under an item are taken off that item, so every line
+  holds what was actually paid. The answer says whether the lines add up to
+  the printed total (`totalsMatch`).
+- Measured on the test receipt: 7/7 lines, 105.07 RON, about 8.5 s.
+
 ## Cost per scanned receipt
 
 About **$0.01** (SAM $0.0025 + Muse Spark ~$0.007), and ~6 s end to end.

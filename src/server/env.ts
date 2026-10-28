@@ -19,6 +19,10 @@ export const env = {
   get databaseUrl() {
     return required("DATABASE_URL");
   },
+  /** Meta Model API key. Only read on the server; null when receipt reading is not set up. */
+  get metaApiKey(): string | null {
+    return process.env.META_API_KEY || null;
+  },
   get isProduction() {
     return process.env.NODE_ENV === "production";
   },
