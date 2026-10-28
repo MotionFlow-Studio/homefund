@@ -45,3 +45,6 @@ next-env.d.ts
 signing.env
 *.env
 docs/hackathon.md
+
+# Real receipt photos used for accuracy tests (personal data, never published)
+test/receipts/
