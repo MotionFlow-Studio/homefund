@@ -25,8 +25,9 @@ const scanning = new Set<string>();
 /**
  * Reads a receipt photo. Takes multipart form data with `image` (JPEG, PNG
  * or WebP, at most 10 MB) and `currency` (the household currency, used when
- * the receipt shows none). The Meta API key never leaves the server and the
- * photo is not stored.
+ * the receipt shows none). The Meta API key never leaves the server. The
+ * photo is never written to disk, a database or a log; it exists in memory
+ * only while this request runs.
  */
 export async function POST(request: Request) {
   if (!isSameOrigin(request)) return errorResponse(403, "forbidden");
@@ -63,8 +64,9 @@ export async function POST(request: Request) {
 
   const timeout = AbortSignal.timeout(RECEIPT_TIMEOUT_MS);
   const signal = AbortSignal.any([timeout, request.signal]);
+  let bytes: Uint8Array | null = null;
   try {
-    const bytes = new Uint8Array(await image.arrayBuffer());
+    bytes = new Uint8Array(await image.arrayBuffer());
     return json(await scanReceipt(bytes, currency, signal));
   } catch (error) {
     if (error instanceof ScanError) {
@@ -77,6 +79,9 @@ export async function POST(request: Request) {
     console.error("Receipt scan failed:", error instanceof MetaApiError ? error.status : (error as Error)?.name);
     return errorResponse(502, "scan_failed");
   } finally {
+    // The photo lives only for this request: wipe it rather than wait for
+    // garbage collection.
+    bytes?.fill(0);
     scanning.delete(user.id);
   }
 }

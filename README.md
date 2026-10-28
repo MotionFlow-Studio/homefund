@@ -11,6 +11,15 @@ A family budget web app that installs on any phone like a native app. Set your p
 - Shared household with a budget per member
 - Every currency (EUR, USD, GBP, HUF, RON and all other ISO 4217 currencies)
 
+## Privacy: receipt photos are never stored
+
+- On the phone, the photo is turned upright, shrunk and re-encoded in memory
+  before upload. This removes all metadata: location (GPS), camera and time.
+- The server reads it in memory only. It is never written to disk, a
+  database, a cache or a log, and its bytes are wiped when the request ends.
+- Only the result is kept: shop, date, amounts, items and categories.
+- The Meta API key stays on the server; the phone never sees it.
+
 ## Built during the hackathon
 
 Everything in this repository was built from scratch during the Meta Global AI Developer Hackathon (October 27 – November 4, 2026). The first commit is dated October 27, 2026.

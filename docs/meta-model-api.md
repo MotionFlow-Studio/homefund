@@ -85,6 +85,21 @@ groceries / household / kids) was exactly right with `low` effort.
 - No server timeout is documented; HomeFund aborts after 30 s and offers
   manual entry.
 
+## Photo privacy
+
+- Phone (`src/lib/receipt-photo.ts`): the photo is decoded, turned upright,
+  shrunk to 3072 px and re-encoded as JPEG on a canvas. The output has no
+  EXIF/XMP block, so GPS, camera and time stamps are gone. The decoded
+  bitmap and canvas are released right away; nothing goes to browser
+  storage, and the service worker never caches `/api/`.
+- Server: the photo stays in memory, sharp's image cache is turned off,
+  and the bytes are zeroed when the request ends. The only log line on
+  failure is an HTTP status or error name.
+- Tested in a real browser with a 4000 x 3200 sideways photo carrying an
+  orientation tag, camera maker and GPS: the upload was 2458 x 3072,
+  upright, with no metadata. During the scan no file anywhere on the server
+  machine received image data or receipt text.
+
 ## Our endpoint: `POST /api/receipt/scan`
 
 - Multipart form: `image` (JPEG, PNG or WebP, max 10 MB) and `currency`

@@ -13,6 +13,10 @@ export class ScanError extends Error {
   }
 }
 
+// sharp keeps recent images in an in-memory cache by default; receipt photos
+// must not outlive their request.
+sharp.cache(false);
+
 const ACCEPTED_FORMATS = new Set(["jpeg", "png", "webp"]);
 
 /** Refuses decompression bombs: about 40 megapixels at most. */
