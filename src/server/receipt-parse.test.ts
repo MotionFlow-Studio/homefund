@@ -8,6 +8,7 @@ import {
   normalizeUnitPrice,
   parseReceiptJson,
   quantityToMilli,
+  spreadDiscount,
 } from "./receipt-parse";
 
 describe("SAM boxes", () => {
@@ -74,9 +75,9 @@ describe("receipt JSON", () => {
       currency: "ron",
       total: "12.49",
       items: [
-        { name: "Milk", quantity: "2", unit_price: "4.50", line_total: "9.00", category: "groceries" },
-        { name: "Discount", quantity: "1", unit_price: null, line_total: "-1.00", category: "groceries" },
-        { name: "Soap", quantity: "1", unit_price: "4.49", line_total: "4.49", category: "household" },
+        { kind: "item", name: "Milk", quantity: "2", unit_price: "4.50", line_total: "9.00", category: "groceries" },
+        { kind: "item_discount", name: "Discount", quantity: "1", unit_price: null, line_total: "-1.00", category: "groceries" },
+        { kind: "item", name: "Soap", quantity: "1", unit_price: "4.49", line_total: "4.49", category: "household" },
       ],
       ...overrides,
     });
@@ -93,6 +94,7 @@ describe("receipt JSON", () => {
       totalMinor: 1249,
       itemsTotalMinor: 1249,
       totalsMatch: true,
+      savedMinor: 100,
     });
     expect(result.receipt.items.map((item) => [item.name, item.lineTotalMinor, item.quantityMilli])).toEqual([
       ["Milk", 800, 2000],
@@ -110,11 +112,53 @@ describe("receipt JSON", () => {
     });
   });
 
+  it("spreads a coupon for the whole receipt over every line", () => {
+    const result = parseReceiptJson(
+      receipt({
+        total: "10.49",
+        items: [
+          { kind: "item", name: "Milk", quantity: "1", unit_price: null, line_total: "8.00", category: "groceries" },
+          { kind: "item", name: "Soap", quantity: "1", unit_price: null, line_total: "4.49", category: "household" },
+          { kind: "receipt_discount", name: "Coupon", quantity: "1", unit_price: null, line_total: "-2.00", category: "other" },
+        ],
+      }),
+      "EUR",
+    );
+    expect(result.ok && result.receipt.items.map((item) => item.lineTotalMinor)).toEqual([672, 377]);
+    expect(result.ok && result.receipt).toMatchObject({ itemsTotalMinor: 1049, totalsMatch: true, savedMinor: 200 });
+  });
+
+  it("drops purchase dates in the future", () => {
+    const now = new Date("2026-10-28T12:00:00Z");
+    const result = parseReceiptJson(receipt({ date: "2027-01-05" }), "EUR", now);
+    expect(result.ok && result.receipt.spentOn).toBeNull();
+  });
+
   it("recognises photos that are not receipts and broken answers", () => {
     expect(parseReceiptJson(receipt({ is_receipt: false }), "EUR")).toEqual({ ok: false, reason: "not_a_receipt" });
     expect(parseReceiptJson(receipt({ items: [] }), "EUR")).toEqual({ ok: false, reason: "not_a_receipt" });
     expect(parseReceiptJson("{", "EUR")).toEqual({ ok: false, reason: "invalid" });
     expect(parseReceiptJson(receipt({ items: [{ name: "x" }] }), "EUR")).toEqual({ ok: false, reason: "invalid" });
+  });
+});
+
+describe("spreading a discount", () => {
+  it("keeps the exact sum and favours the largest shares", () => {
+    expect(spreadDiscount([119, 205, 294, 150, 115, 499, 399], 200)).toEqual([106, 182, 261, 133, 102, 443, 354]);
+    expect(spreadDiscount([1, 1, 1], 2)).toEqual([0, 0, 1]);
+    expect(spreadDiscount([500], 900)).toEqual([0]);
+    expect(spreadDiscount([300, 200], 0)).toEqual([300, 200]);
+  });
+
+  it("never loses or adds a minor unit", () => {
+    for (let run = 0; run < 500; run++) {
+      const totals = Array.from({ length: 1 + (run % 9) }, (_, i) => ((run * 7919 + i * 104729) % 50_000) + 1);
+      const sum = totals.reduce((a, b) => a + b, 0);
+      const discount = (run * 31) % sum;
+      const after = spreadDiscount(totals, discount);
+      expect(after.reduce((a, b) => a + b, 0)).toBe(sum - discount);
+      expect(after.every((total, i) => total >= 0 && total <= totals[i])).toBe(true);
+    }
   });
 });
 

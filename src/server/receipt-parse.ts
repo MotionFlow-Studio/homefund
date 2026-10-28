@@ -99,6 +99,12 @@ export function normalizeUnitPrice(value: string | null): string | null {
   return /^\d{1,13}(\.\d{1,6})?$/.test(raw) ? raw : null;
 }
 
+/**
+ * What a receipt line is: something bought, a discount on the line above,
+ * or a coupon for the whole receipt.
+ */
+export const LINE_KINDS = ["item", "item_discount", "receipt_discount"] as const;
+
 /** The JSON schema Muse Spark must answer with (strict mode). */
 export const RECEIPT_JSON_SCHEMA = {
   type: "object",
@@ -115,8 +121,9 @@ export const RECEIPT_JSON_SCHEMA = {
       items: {
         type: "object",
         additionalProperties: false,
-        required: ["name", "quantity", "unit_price", "line_total", "category"],
+        required: ["kind", "name", "quantity", "unit_price", "line_total", "category"],
         properties: {
+          kind: { type: "string", enum: LINE_KINDS },
           name: { type: "string" },
           quantity: { type: "string" },
           unit_price: { type: ["string", "null"] },
@@ -137,6 +144,7 @@ const modelReceiptSchema = z.object({
   items: z
     .array(
       z.object({
+        kind: z.enum(LINE_KINDS),
         name: z.string(),
         quantity: z.string(),
         unit_price: z.string().nullable(),
@@ -154,16 +162,42 @@ function cleanText(value: string | null, max: number): string | null {
   return text ? text : null;
 }
 
-function validDate(value: string | null): string | null {
+/** A purchase date, unless it is malformed or in the future. */
+function validDate(value: string | null, now: Date): string | null {
   if (!value || !z.iso.date().safeParse(value).success) return null;
-  return value;
+  const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  return value <= tomorrow ? value : null;
+}
+
+/**
+ * Spreads a discount over line totals in proportion to their size, so the
+ * category totals stay right. Remainders go to the largest shares first.
+ */
+export function spreadDiscount(totals: number[], discount: number): number[] {
+  const sum = totals.reduce((a, b) => a + b, 0);
+  if (sum === 0 || discount <= 0) return totals;
+  const off = Math.min(discount, sum);
+
+  const shares = totals.map((total, index) => {
+    const exact = (total * off) / sum;
+    return { index, whole: Math.floor(exact), rest: exact - Math.floor(exact) };
+  });
+  let left = off - shares.reduce((a, share) => a + share.whole, 0);
+  for (const share of [...shares].sort((a, b) => b.rest - a.rest || a.index - b.index)) {
+    if (left === 0) break;
+    share.whole += 1;
+    left -= 1;
+  }
+  return totals.map((total, index) => total - shares[index].whole);
 }
 
 /**
  * Checks the model's JSON and converts it to a ReceiptScan. Amounts are
- * converted exactly; negative lines (discounts) are taken off the line above.
+ * converted exactly. Line discounts are taken off the line above; coupons for
+ * the whole receipt are spread over all lines. Every line then holds what was
+ * actually paid for it.
  */
-export function parseReceiptJson(text: string, fallbackCurrency: string): ParsedReceipt {
+export function parseReceiptJson(text: string, fallbackCurrency: string, now = new Date()): ParsedReceipt {
   let data: z.infer<typeof modelReceiptSchema>;
   try {
     const result = modelReceiptSchema.safeParse(JSON.parse(text));
@@ -180,13 +214,22 @@ export function parseReceiptJson(text: string, fallbackCurrency: string): Parsed
   const currency = currencyDetected ? printedCurrency! : fallbackCurrency;
 
   const items: ScannedItem[] = [];
+  let savedMinor = 0;
+  let receiptDiscount = 0;
   for (const line of data.items) {
     const lineTotal = amountToMinor(line.line_total, currency);
-    if (lineTotal === null) continue;
+    if (lineTotal === null || lineTotal === 0) continue;
 
-    if (lineTotal < 0) {
+    if (line.kind !== "item" || lineTotal < 0) {
+      const discount = Math.abs(lineTotal);
       const previous = items.at(-1);
-      if (previous) previous.lineTotalMinor = Math.max(0, previous.lineTotalMinor + lineTotal);
+      if (line.kind === "receipt_discount" || !previous) {
+        receiptDiscount += discount;
+      } else {
+        const taken = Math.min(discount, previous.lineTotalMinor);
+        previous.lineTotalMinor -= taken;
+        savedMinor += taken;
+      }
       continue;
     }
 
@@ -201,6 +244,16 @@ export function parseReceiptJson(text: string, fallbackCurrency: string): Parsed
 
   if (items.length === 0) return { ok: false, reason: "not_a_receipt" };
 
+  if (receiptDiscount > 0) {
+    const before = items.reduce((sum, item) => sum + item.lineTotalMinor, 0);
+    const after = spreadDiscount(
+      items.map((item) => item.lineTotalMinor),
+      receiptDiscount,
+    );
+    after.forEach((total, index) => (items[index].lineTotalMinor = total));
+    savedMinor += before - after.reduce((a, b) => a + b, 0);
+  }
+
   const total = data.total === null ? null : amountToMinor(data.total, currency);
   const totalMinor = total !== null && total >= 0 ? total : null;
   const itemsTotalMinor = items.reduce((sum, item) => sum + item.lineTotalMinor, 0);
@@ -209,12 +262,13 @@ export function parseReceiptJson(text: string, fallbackCurrency: string): Parsed
     ok: true,
     receipt: {
       merchant: cleanText(data.merchant, 80),
-      spentOn: validDate(data.date),
+      spentOn: validDate(data.date, now),
       currency,
       currencyDetected,
       totalMinor,
       itemsTotalMinor,
       totalsMatch: totalMinor !== null && totalMinor === itemsTotalMinor,
+      savedMinor,
       items,
       crop: null,
     },

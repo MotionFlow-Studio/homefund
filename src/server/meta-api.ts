@@ -75,6 +75,7 @@ export async function readImageAsJson(
   jpeg: Buffer,
   prompt: string,
   schema: { name: string; schema: object },
+  effort: "minimal" | "low" | "medium" | "high",
   signal: AbortSignal,
 ): Promise<string> {
   const response = await fetch(`${BASE_URL}/responses`, {
@@ -82,7 +83,7 @@ export async function readImageAsJson(
     headers: headers(),
     body: JSON.stringify({
       model: "muse-spark-1.3",
-      reasoning: { effort: "low" },
+      reasoning: { effort },
       text: { format: { type: "json_schema", name: schema.name, schema: schema.schema, strict: true } },
       input: imageContent(prompt, jpeg),
     }),

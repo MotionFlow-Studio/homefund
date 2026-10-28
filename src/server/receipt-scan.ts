@@ -2,6 +2,7 @@ import "server-only";
 import sharp, { type Sharp } from "sharp";
 import { CATEGORY_LIST } from "@/lib/categories";
 import type { CropArea, ReceiptScan } from "@/lib/receipt";
+import { RECEIPT_TIMEOUT_MS } from "@/lib/receipt-limits";
 import { readImageAsJson, segment } from "@/server/meta-api";
 import { bestBox, cropArea, cropRect, parseReceiptJson, RECEIPT_JSON_SCHEMA } from "@/server/receipt-parse";
 
@@ -21,15 +22,34 @@ const MAX_INPUT_PIXELS = 40_000_000;
 const MIN_BOX_CONFIDENCE = 0.3;
 
 const PROMPT = [
-  "Read this shop receipt.",
-  "Return every purchased line item exactly as printed: amounts as decimal strings with a dot, no rounding.",
-  "If a discount is printed under an item, return the discount as its own line with a negative line_total.",
-  "Also return the merchant, the purchase date, the ISO 4217 currency code and the grand total.",
-  "Sort each item into one category:",
+  "Read this shop receipt and return its contents in the given JSON format.",
+  "",
+  "Amounts: decimal strings exactly as printed, with a dot as the decimal separator and no thousands",
+  'separators ("2 559" -> "2559", "1,19" -> "1.19"). Never round or calculate amounts yourself.',
+  "",
+  "items, in printed order:",
+  '- kind "item": every product or service paid for, including bottle deposits and bag fees.',
+  "  line_total is the amount printed for the line; quantity is the count or weight",
+  '  ("2", "0.856"); unit_price is the price per piece or per kg if printed, otherwise null.',
+  '- kind "item_discount": a discount printed under a product. line_total is negative.',
+  '- kind "receipt_discount": a coupon or discount for the whole receipt, usually after the',
+  "  subtotal. line_total is negative.",
+  "Leave out subtotals, VAT or tax summaries, payment, change, cashback and loyalty point lines.",
+  "",
+  "total: the final amount paid, as printed.",
+  'currency: ISO 4217 code from the printed symbol or word ("Ft" -> HUF, "lei" -> RON, "€" -> EUR),',
+  "or null if none is printed.",
+  "date: purchase date as YYYY-MM-DD, or null. merchant: the shop name.",
+  "",
+  "category for every line, from this list (a bottle deposit gets the category of its drink;",
+  "a discount gets the category of what it discounts):",
   ...CATEGORY_LIST.map((category) => `- ${category.id}: ${category.hint}`),
-  "Ignore tax summaries, payment, change and loyalty lines.",
+  "",
   "If the image is not a receipt, set is_receipt to false and return no items.",
 ].join("\n");
+
+/** A second, more careful read is only attempted if this much time is left. */
+const RETRY_TIME_LEFT_MS = 15_000;
 
 /** Largest photo kept for cropping (longest side, pixels). */
 const SOURCE_MAX_SIDE = 4096;
@@ -53,13 +73,28 @@ export async function scanReceipt(
   fallbackCurrency: string,
   signal: AbortSignal,
 ): Promise<ReceiptScan> {
+  const started = Date.now();
   const photo = await normalize(bytes);
   const { image, crop } = await cropToReceipt(photo, signal);
 
-  const json = await readImageAsJson(image, PROMPT, { name: "receipt", schema: RECEIPT_JSON_SCHEMA }, signal);
-  const parsed = parseReceiptJson(json, fallbackCurrency);
+  let parsed = await read(image, "low", fallbackCurrency, signal);
+
+  // If the lines do not add up to the printed total, read once more, more
+  // carefully, as long as there is time; keep whichever answer adds up.
+  const needsSecondLook =
+    !parsed.ok ? parsed.reason === "invalid" : parsed.receipt.totalMinor !== null && !parsed.receipt.totalsMatch;
+  if (needsSecondLook && Date.now() - started < RECEIPT_TIMEOUT_MS - RETRY_TIME_LEFT_MS) {
+    const second = await read(image, "medium", fallbackCurrency, signal);
+    if (second.ok && (!parsed.ok || second.receipt.totalsMatch)) parsed = second;
+  }
+
   if (!parsed.ok) throw new ScanError(parsed.reason === "not_a_receipt" ? "not_a_receipt" : "scan_failed");
   return { ...parsed.receipt, crop };
+}
+
+async function read(image: Buffer, effort: "low" | "medium", fallbackCurrency: string, signal: AbortSignal) {
+  const json = await readImageAsJson(image, PROMPT, { name: "receipt", schema: RECEIPT_JSON_SCHEMA }, effort, signal);
+  return parseReceiptJson(json, fallbackCurrency);
 }
 
 /** Checks the image, turns it upright, removes its metadata and caps its size. */

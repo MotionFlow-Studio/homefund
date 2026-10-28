@@ -96,11 +96,24 @@ groceries / household / kids) was exactly right with `low` effort.
   Unreadable files: `415 unsupported_image`.
 - The server turns the photo upright, strips its metadata and never stores it.
   If SAM finds no receipt box, the whole photo is read.
-- Discounts printed under an item are taken off that item, so every line
-  holds what was actually paid. The answer says whether the lines add up to
-  the printed total (`totalsMatch`).
+- Every line comes back with a `kind`: `item`, `item_discount` (taken off the
+  line above) or `receipt_discount` (a coupon, spread over all lines in
+  proportion, to the exact minor unit). Every line then holds what was
+  actually paid, so category totals are right. `savedMinor` is the sum of all
+  discounts.
+- Subtotals, VAT summaries, payment and loyalty lines are left out; bottle
+  deposits are kept as lines in their drink's category.
+- The answer says whether the lines add up to the printed total
+  (`totalsMatch`). If they do not, the receipt is read once more with
+  `medium` effort (if at least 15 s are left) and the answer that adds up wins.
+- Dates in the future are dropped; a receipt with no printed currency uses
+  the household currency (`currencyDetected: false`).
 - The answer includes `crop`: where the receipt was found, as fractions of
   the upright photo (null when the whole photo was read).
+- Test receipts in `test/fixtures` (all self-made): Lidl Romania (RON),
+  SPAR Hungary (HUF, line discount, bottle deposit, VAT lines) and REWE
+  Germany (EUR with decimal commas, line discount, deposit, a 2 EUR coupon).
+  All three: every line, total, currency, date and category right, 6-8 s.
 - Measured: 7/7 lines and 105.07 RON both for the test receipt and for the
   same receipt photographed small and tilted on a table or pushed into a
   corner (it fills 5-10% of the photo); about 7.5-8 s each.

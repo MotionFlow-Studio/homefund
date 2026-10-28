@@ -27,6 +27,8 @@ export type ReceiptScan = {
   itemsTotalMinor: number;
   /** True when the line totals add up to the printed total. */
   totalsMatch: boolean;
+  /** Discounts and coupons on the receipt, already taken off the lines. */
+  savedMinor: number;
   items: ScannedItem[];
   /**
    * Where the receipt was found, as fractions (0-1) of the upright photo, or
