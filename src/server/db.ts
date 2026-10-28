@@ -4,15 +4,29 @@ import postgres from "postgres";
 import * as schema from "@/db/schema";
 import { env } from "@/server/env";
 
-const globalForDb = globalThis as unknown as { sql?: ReturnType<typeof postgres> };
+function connect() {
+  /** One shared connection pool. prepare: false is required by the Supabase pooler. */
+  const sql = postgres(env.databaseUrl, {
+    max: 5,
+    prepare: false,
+    idle_timeout: 20,
+    connect_timeout: 15,
+  });
+  return drizzle(sql, { schema });
+}
 
-/** One shared connection pool. prepare: false is required by the Supabase pooler. */
-const sql = (globalForDb.sql ??= postgres(env.databaseUrl, {
-  max: 5,
-  prepare: false,
-  idle_timeout: 20,
-  connect_timeout: 15,
-}));
+export type Db = ReturnType<typeof connect>;
 
-export const db = drizzle(sql, { schema });
-export type Db = typeof db;
+const globalForDb = globalThis as unknown as { db?: Db };
+
+/**
+ * The database, connected on first use rather than when the module loads,
+ * so the app builds without any secrets and reads them only at run time.
+ */
+export const db = new Proxy({} as Db, {
+  get(_, property) {
+    const instance = (globalForDb.db ??= connect());
+    const value = Reflect.get(instance, property, instance);
+    return typeof value === "function" ? value.bind(instance) : value;
+  },
+});
