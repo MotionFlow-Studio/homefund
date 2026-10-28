@@ -1,6 +1,6 @@
 import "server-only";
 import { and, eq, getTableColumns, gt, inArray, isNull, sql, type SQL } from "drizzle-orm";
-import type { PgTable } from "drizzle-orm/pg-core";
+import type { AnyPgColumn, PgTable } from "drizzle-orm/pg-core";
 import type { z } from "zod";
 import {
   expenses,
@@ -25,8 +25,19 @@ type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
 
 /** Changes stamped further in the future than this are rejected. */
 const MAX_CLOCK_SKEW_MS = 5 * 60 * 1000;
-/** Most records returned in one pull. */
-const PULL_LIMIT = 5_000;
+/** Most records per table returned in one pull; the client asks again while `more` is set. */
+const PULL_LIMIT = Number(process.env.SYNC_PULL_LIMIT) || 5_000;
+
+/**
+ * Every write that hands out sync sequence numbers takes this lock first, so
+ * writes commit in the order of their numbers. Without it, a write that took
+ * number 10 could commit after one that took 11, and a device that already
+ * pulled up to 11 would never see number 10.
+ */
+export async function lockSyncWrites(tx: { execute: Db["execute"] }) {
+  await tx.execute(sql`select pg_advisory_xact_lock(${SYNC_WRITE_LOCK})`);
+}
+const SYNC_WRITE_LOCK = 7_340_001;
 
 const nextSeq = sql`nextval('sync_seq')`;
 
@@ -88,7 +99,9 @@ async function householdsOf(tx: Tx | Db, userId: string): Promise<Set<string>> {
 
 /** Applies the client's changes the user is allowed to make. Returns the number applied. */
 async function push(userId: string, changes: ChangeSet): Promise<number> {
+  if (!Object.values(changes).some((records) => records && records.length > 0)) return 0;
   return db.transaction(async (tx) => {
+    await lockSyncWrites(tx);
     let applied = 0;
     const allowed = await householdsOf(tx, userId);
 
@@ -193,26 +206,33 @@ async function push(userId: string, changes: ChangeSet): Promise<number> {
 async function pull(userId: string, cursor: number): Promise<SyncResponse> {
   const allowed = [...(await householdsOf(db, userId))];
   if (allowed.length === 0) {
-    return { cursor: String(cursor), changes: {} };
+    return { cursor: String(cursor), more: false, changes: {} };
   }
 
   const memberIds = db.select({ id: members.id }).from(members).where(inArray(members.householdId, allowed));
   const expenseIds = db.select({ id: expenses.id }).from(expenses).where(inArray(expenses.householdId, allowed));
 
+  const since = (serverSeq: AnyPgColumn) => gt(serverSeq, cursor);
   const [h, m, p, f, e, r] = await Promise.all([
-    db.select().from(households).where(and(inArray(households.id, allowed), gt(households.serverSeq, cursor))).limit(PULL_LIMIT),
-    db.select().from(members).where(and(inArray(members.householdId, allowed), gt(members.serverSeq, cursor))).limit(PULL_LIMIT),
-    db.select().from(paySettings).where(and(inArray(paySettings.memberId, memberIds), gt(paySettings.serverSeq, cursor))).limit(PULL_LIMIT),
-    db.select().from(fixedCosts).where(and(inArray(fixedCosts.memberId, memberIds), gt(fixedCosts.serverSeq, cursor))).limit(PULL_LIMIT),
-    db.select().from(expenses).where(and(inArray(expenses.householdId, allowed), gt(expenses.serverSeq, cursor))).limit(PULL_LIMIT),
-    db.select().from(receiptItems).where(and(inArray(receiptItems.expenseId, expenseIds), gt(receiptItems.serverSeq, cursor))).limit(PULL_LIMIT),
+    db.select().from(households).where(and(inArray(households.id, allowed), since(households.serverSeq))).orderBy(households.serverSeq).limit(PULL_LIMIT),
+    db.select().from(members).where(and(inArray(members.householdId, allowed), since(members.serverSeq))).orderBy(members.serverSeq).limit(PULL_LIMIT),
+    db.select().from(paySettings).where(and(inArray(paySettings.memberId, memberIds), since(paySettings.serverSeq))).orderBy(paySettings.serverSeq).limit(PULL_LIMIT),
+    db.select().from(fixedCosts).where(and(inArray(fixedCosts.memberId, memberIds), since(fixedCosts.serverSeq))).orderBy(fixedCosts.serverSeq).limit(PULL_LIMIT),
+    db.select().from(expenses).where(and(inArray(expenses.householdId, allowed), since(expenses.serverSeq))).orderBy(expenses.serverSeq).limit(PULL_LIMIT),
+    db.select().from(receiptItems).where(and(inArray(receiptItems.expenseId, expenseIds), since(receiptItems.serverSeq))).orderBy(receiptItems.serverSeq).limit(PULL_LIMIT),
   ]);
 
-  const all = [h, m, p, f, e, r].flat() as { serverSeq: number }[];
-  const nextCursor = all.reduce((max, row) => Math.max(max, row.serverSeq), cursor);
+  // A table that hit the limit may have more rows after its last one. The new
+  // cursor must not pass that row, or the rest would never be sent; rows of
+  // other tables above it simply come again next time (merging is idempotent).
+  const tables = [h, m, p, f, e, r] as { serverSeq: number }[][];
+  const cut = tables.filter((rows) => rows.length >= PULL_LIMIT).map((rows) => rows[rows.length - 1].serverSeq);
+  const highest = tables.flat().reduce((max, row) => Math.max(max, row.serverSeq), cursor);
+  const nextCursor = cut.length > 0 ? Math.min(...cut) : highest;
 
   return {
     cursor: String(nextCursor),
+    more: cut.length > 0,
     changes: {
       households: h.map(toRecord),
       members: m.map(toRecord),

@@ -17,6 +17,10 @@ export function OfflineProvider() {
   return <ConnectionBanner />;
 }
 
+/**
+ * A small label at the top while offline. It lets taps through and sits
+ * above the screen's own buttons, so saving keeps working underneath it.
+ */
 function ConnectionBanner() {
   const { state, pending } = useSyncStatus();
   if (state !== "offline") return null;
@@ -24,11 +28,12 @@ function ConnectionBanner() {
   return (
     <div
       role="status"
-      className="fixed inset-x-0 bottom-0 z-50 bg-amber-100 px-4 py-2 text-center text-sm text-amber-900 pb-[max(0.5rem,env(safe-area-inset-bottom))]"
+      className="pointer-events-none fixed inset-x-0 top-0 z-[60] flex justify-center pt-[max(0.375rem,env(safe-area-inset-top))]"
     >
-      You are offline. Everything still works
-      {pending > 0 ? ` and ${pending} change${pending === 1 ? "" : "s"} will sync` : " and changes will sync"}{" "}
-      when you are back online.
+      <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-medium text-amber-900 shadow-sm dark:bg-amber-900 dark:text-amber-100">
+        Offline ·{" "}
+        {pending > 0 ? `${pending} change${pending === 1 ? "" : "s"} will sync later` : "changes will sync later"}
+      </span>
     </div>
   );
 }

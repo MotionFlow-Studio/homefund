@@ -5,6 +5,7 @@ import { invites, members } from "@/db/schema";
 import { INVITE_ALPHABET, INVITE_CODE_LENGTH, INVITE_HOURS, isInviteCode, normalizeInviteCode } from "@/lib/invite-code";
 import { MEMBER_COLORS } from "@/lib/model";
 import { db } from "@/server/db";
+import { lockSyncWrites } from "@/server/sync";
 
 /** Most codes a household can have open at once. */
 const MAX_OPEN_INVITES = 5;
@@ -103,6 +104,7 @@ export async function joinWithCode(userId: string, typedCode: string, name: stri
   if (!isInviteCode(code)) throw new InviteError("invalid_code");
 
   return db.transaction(async (tx) => {
+    await lockSyncWrites(tx);
     // One join at a time per user, so two codes used at once cannot add them twice.
     await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${userId}))`);
     const [mine] = await tx

@@ -19,7 +19,8 @@ import {
 export type ChangeSet = { [T in SyncedTable]?: SyncedRecord[T][] };
 
 export type SyncRequest = { cursor: string | null; changes: ChangeSet };
-export type SyncResponse = { cursor: string; changes: ChangeSet };
+/** `more` is set when the server had more changes than it sends at once. */
+export type SyncResponse = { cursor: string; more?: boolean; changes: ChangeSet };
 
 export type SyncTransport = (request: SyncRequest) => Promise<SyncResponse>;
 
@@ -65,20 +66,39 @@ export async function syncOnce(transport: SyncTransport = httpTransport): Promis
     (changes[entry.table] ??= [] as never[]).push(record as never);
   }
 
-  const cursor = (await db.meta.get(CURSOR_KEY))?.value ?? null;
-  const response = await transport({ cursor, changes });
+  let cursor = (await db.meta.get(CURSOR_KEY))?.value ?? null;
+  let response = await transport({ cursor, changes });
+  let pulled = await merge(response, outbox);
 
+  // A device far behind (or new) gets the rest page by page.
+  for (let page = 0; response.more && page < MAX_PAGES; page++) {
+    cursor = response.cursor;
+    response = await transport({ cursor, changes: {} });
+    pulled += await merge(response, []);
+  }
+
+  return { pushed: outbox.length, pulled };
+}
+
+/** Most extra pages fetched in one round; the next round continues from there. */
+const MAX_PAGES = 100;
+
+/**
+ * Applies one server answer: clears what was sent (unless it changed again
+ * meanwhile), merges incoming records with last write wins, and moves the
+ * cursor.
+ */
+async function merge(response: SyncResponse, sent: OutboxEntry[]): Promise<number> {
+  const db = localDb();
   let pulled = 0;
   await db.transaction("rw", [...SYNCED_TABLES.map((t) => db.table(t)), db.outbox, db.meta], async () => {
-    // Clear outbox entries that were sent and not changed again since.
-    for (const sent of outbox) {
-      const current: OutboxEntry | undefined = await db.outbox.get(sent.key);
-      if (current && current.queuedAt === sent.queuedAt) {
-        await db.outbox.delete(sent.key);
+    for (const entry of sent) {
+      const current: OutboxEntry | undefined = await db.outbox.get(entry.key);
+      if (current && current.queuedAt === entry.queuedAt) {
+        await db.outbox.delete(entry.key);
       }
     }
 
-    // Merge server changes, last write wins.
     for (const table of SYNCED_TABLES) {
       for (const incoming of response.changes[table] ?? []) {
         const id = recordKey(table, incoming as SyncedRecord[typeof table]);
@@ -93,6 +113,5 @@ export async function syncOnce(transport: SyncTransport = httpTransport): Promis
 
     await db.meta.put({ key: CURSOR_KEY, value: response.cursor });
   });
-
-  return { pushed: outbox.length, pulled };
+  return pulled;
 }

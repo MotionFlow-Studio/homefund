@@ -24,7 +24,7 @@ function expenseDraft(amountMinor: number, spentOn = "2026-10-27") {
 }
 
 /** A fake server that stores records with last-write-wins, like the real one. */
-function fakeServer() {
+function fakeServer(pageSize = Infinity) {
   const store = new Map<string, { table: SyncedTable; record: { updatedAt: string }; seq: number }>();
   let seq = 0;
   const transport: SyncTransport = async ({ cursor, changes }) => {
@@ -39,10 +39,11 @@ function fakeServer() {
     }
     const since = Number(cursor ?? 0);
     const out: ChangeSet = {};
-    for (const { table, record, seq: s } of store.values()) {
-      if (s > since) (out[table] ??= [] as never[]).push(record as never);
-    }
-    return { cursor: String(seq), changes: out };
+    const newer = [...store.values()].filter((entry) => entry.seq > since).sort((a, b) => a.seq - b.seq);
+    const page = newer.slice(0, pageSize);
+    for (const { table, record } of page) (out[table] ??= [] as never[]).push(record as never);
+    const more = newer.length > page.length;
+    return { cursor: String(more ? page[page.length - 1].seq : seq), more, changes: out };
   };
   return { transport, store };
 }
@@ -142,5 +143,30 @@ describe("sync when back online", () => {
       const e = (await db.expenses.get(original.id)) as Expense;
       expect(e.amountMinor).toBe(3000);
     }
+  });
+});
+
+describe("catching up", () => {
+  it("fetches everything page by page when far behind", async () => {
+    const server = fakeServer(4);
+    // Another device saved 11 expenses.
+    for (let i = 1; i <= 11; i++) {
+      await saveExpense(expenseDraft(i * 100));
+    }
+    await syncOnce(server.transport);
+
+    // A brand-new device catches up in one round, 4 records at a time.
+    const fresh = new HomeFundDb(`test-${Math.random()}`);
+    setLocalDb(fresh);
+    await fresh.open();
+    let calls = 0;
+    const counting: SyncTransport = (request) => {
+      calls++;
+      return server.transport(request);
+    };
+    const result = await syncOnce(counting);
+    expect(result.pulled).toBe(11);
+    expect(calls).toBe(3);
+    expect((await listExpenses(householdId, "2026-10-01", "2026-10-31")).length).toBe(11);
   });
 });

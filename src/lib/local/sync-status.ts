@@ -7,8 +7,9 @@ import { OfflineError, syncOnce } from "@/lib/local/sync";
 
 /*
  * Keeps the device in sync automatically: on start, when the connection
- * comes back, when the app returns to the foreground, after local changes,
- * and every minute while open.
+ * comes back, when the app returns to the foreground, a second after local
+ * changes, and every 10 seconds while the app is on screen, so what one
+ * family member adds shows up on the others' phones within seconds.
  */
 
 export type SyncState = "idle" | "syncing" | "offline" | "error";
@@ -61,7 +62,7 @@ export function requestSync(): Promise<void> {
 let started = false;
 
 /** Wires up the automatic sync triggers. Call once in the browser. */
-export function startAutoSync(intervalMs = 60_000): () => void {
+export function startAutoSync(intervalMs = 10_000): () => void {
   if (started) return () => {};
   started = true;
 
@@ -80,7 +81,10 @@ export function startAutoSync(intervalMs = 60_000): () => void {
     debounce = window.setTimeout(() => void requestSync(), 1_000);
   };
   window.addEventListener(CHANGED_EVENT, onChanged);
-  const timer = window.setInterval(() => void requestSync(), intervalMs);
+  // Only while on screen: a phone in a pocket should not keep calling home.
+  const timer = window.setInterval(() => {
+    if (document.visibilityState === "visible") void requestSync();
+  }, intervalMs);
   void requestSync();
 
   return () => {
