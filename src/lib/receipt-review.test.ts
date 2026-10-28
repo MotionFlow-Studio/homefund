@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mainCategory, scaleToTotal } from "./receipt-review";
+import { categorySplit, mainCategory, scaleToTotal } from "./receipt-review";
 
 describe("scaling a receipt to what was paid", () => {
   it("keeps proportions and the exact total", () => {
@@ -36,5 +36,21 @@ describe("main category", () => {
       ]),
     ).toBe("groceries");
     expect(mainCategory([{ category: "kids", amountMinor: 1 }, { category: "fun", amountMinor: 1 }])).toBe("kids");
+  });
+});
+
+describe("categorySplit", () => {
+  it("adds up per category, largest first, without empty ones", () => {
+    expect(
+      categorySplit([
+        { category: "groceries", amountMinor: 749 },
+        { category: "household", amountMinor: 999 },
+        { category: "groceries", amountMinor: 5490 },
+        { category: "kids", amountMinor: 0 },
+      ]),
+    ).toEqual([
+      { category: "groceries", amountMinor: 6239 },
+      { category: "household", amountMinor: 999 },
+    ]);
   });
 });

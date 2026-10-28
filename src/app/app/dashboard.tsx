@@ -1,22 +1,14 @@
 "use client";
 
-import { CalendarDays, Camera, ChartPie, LogOut, Plus, Settings2, Users } from "lucide-react";
+import { CalendarDays, Camera, ChartPie, LogOut, Plus, Receipt, Settings2, Users } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { CategoryBadge } from "@/components/category-badge";
-import { getCategory } from "@/lib/categories";
 import { Money } from "@/components/money";
+import { addDays, localToday } from "@/lib/budget";
+import { getCategory } from "@/lib/categories";
+import { removeExpense, useHouseholdExpenses, useHouseholdMembers } from "@/lib/expenses";
 import { formatMoney } from "@/lib/money";
-
-/**
- * Font size that keeps an amount on one line: as large as maxRem allows,
- * smaller for long amounts, measured against the card width (container units).
- */
-function fitSize(text: string, maxRem: number) {
-  const width = text.length * 0.62 + 0.4;
-  return `min(${maxRem}rem, calc(100cqw / ${width.toFixed(2)}))`;
-}
-import { removeExpense, useHouseholdExpenses } from "@/lib/expenses";
 import type { Expense, FixedCost, Household, Member, PaySettings } from "@/lib/model";
 import { useBudget } from "@/lib/use-budget";
 import { ExpenseForm } from "./expense-form";
@@ -31,6 +23,21 @@ type Props = {
   signingOut: boolean;
 };
 
+/**
+ * Font size that keeps an amount on one line: as large as maxRem allows,
+ * smaller for long amounts, measured against the card width (container units).
+ * `text` is the amount without its symbol; room for the small symbol is added.
+ */
+function fitSize(text: string, maxRem: number) {
+  const width = text.length * 0.62 + 1.2;
+  return `min(${maxRem}rem, calc(100cqw / ${width.toFixed(2)}))`;
+}
+
+/** The amount without its currency symbol, which is set much smaller and takes little room. */
+function digits(amount: string) {
+  return amount.replace(/[^\d.,\s-]/g, "").trim();
+}
+
 function paydayLabel(date: string) {
   return new Date(`${date}T00:00:00`).toLocaleDateString("en-GB", {
     weekday: "short",
@@ -39,11 +46,20 @@ function paydayLabel(date: string) {
   });
 }
 
+function dayLabel(date: string, today: string) {
+  if (date === today) return "Today";
+  if (date === addDays(today, -1)) return "Yesterday";
+  return new Date(`${date}T00:00:00`).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+}
+
 export function Dashboard({ household, me, settings, fixedCosts, onSignOut, signingOut }: Props) {
   const budget = useBudget(me.id, settings, fixedCosts);
   const [adding, setAdding] = useState(false);
   const recent = (useHouseholdExpenses(household.id) ?? []).slice(0, 5);
   const [lastSaved, setLastSaved] = useState<Expense | null>(null);
+  const members = useHouseholdMembers(household.id) ?? [];
+  const memberById = new Map(members.map((m) => [m.id, m]));
+  const today = localToday();
 
   useEffect(() => {
     if (!lastSaved) return;
@@ -128,85 +144,94 @@ export function Dashboard({ household, me, settings, fixedCosts, onSignOut, sign
 
       <section
         aria-label="Your budget"
-        className={`rounded-[2rem] p-6 text-white shadow-sm [container-type:inline-size] ${
-          budget.overspent ? "bg-gradient-to-br from-red-600 to-red-700" : "bg-gradient-to-br from-brand to-brand-strong"
+        className={`relative overflow-hidden rounded-[2rem] p-6 text-white shadow-lg shadow-brand/20 [container-type:inline-size] ${
+          budget.overspent
+            ? "bg-gradient-to-br from-red-600 to-red-700 shadow-red-600/20"
+            : "bg-gradient-to-br from-brand to-brand-strong"
         }`}
       >
-        <p className="text-sm font-medium text-white/85">Left until payday</p>
+        <div aria-hidden className="pointer-events-none absolute -top-16 -right-16 size-48 rounded-full bg-white/10" />
+
+        <p className="relative text-sm font-medium text-white/85">
+          {budget.overspent ? "Over budget by" : "Left until payday"}
+        </p>
         <p
           aria-live="polite"
-          className="mt-1 whitespace-nowrap font-bold leading-none tracking-tight"
-          style={{ fontSize: fitSize(money(budget.leftMinor), 3.75) }}
+          className="relative mt-1 whitespace-nowrap font-bold leading-none tracking-tight"
+          style={{ fontSize: fitSize(digits(money(Math.abs(budget.leftMinor))), 3.75) }}
         >
-          <Money minor={budget.leftMinor} currency={currency} />
+          <Money minor={Math.abs(budget.leftMinor)} currency={currency} />
         </p>
 
-        <div className="mt-6 rounded-2xl bg-white/15 p-4 [container-type:inline-size]">
-          <p className="text-sm font-medium text-white/85">You can spend per day</p>
-          {budget.overspent ? (
-            <p className="mt-1 text-2xl font-bold">Over budget</p>
-          ) : (
-            <p
-              aria-live="polite"
-              className="mt-1 whitespace-nowrap font-bold leading-none tracking-tight"
-              style={{ fontSize: fitSize(money(budget.perDayMinor), 2.75) }}
-            >
-              <Money minor={budget.perDayMinor} currency={currency} />
-            </p>
-          )}
-        </div>
-
-        <p className="mt-5 flex items-center gap-2 text-base font-medium">
-          <CalendarDays size={18} aria-hidden />
-          <span>
-            <span className="tabular-nums">{budget.daysLeft}</span> {budget.daysLeft === 1 ? "day" : "days"} to payday
-            <span className="text-white/75"> · {paydayLabel(budget.nextPayday)}</span>
-          </span>
-        </p>
-      </section>
-
-      <section aria-label="This pay period" className="rounded-3xl border border-black/10 p-5 dark:border-white/10">
-        <div className="flex items-baseline justify-between gap-3">
-          <h2 className="font-semibold">This pay period</h2>
-          <p className="text-sm tabular-nums opacity-70">
-            {budget.availableMinor > 0 ? `${money(budget.spentMinor)} of ${money(budget.availableMinor)}` : money(budget.spentMinor)}
-          </p>
-        </div>
-        <div
-          className="mt-3 h-2.5 overflow-hidden rounded-full bg-black/10 dark:bg-white/10"
-          role="progressbar"
-          aria-label="Share of this period's budget spent"
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-valuenow={Math.round(spentShare)}
-        >
+        <div className="relative mt-5">
           <div
-            className={`h-full rounded-full ${budget.overspent ? "bg-red-500" : "bg-brand"}`}
-            style={{ width: `${spentShare}%` }}
-          />
+            className="h-2 overflow-hidden rounded-full bg-white/20"
+            role="progressbar"
+            aria-label="Share of this period's budget spent"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={Math.round(spentShare)}
+          >
+            <div className="h-full rounded-full bg-white" style={{ width: `${spentShare}%` }} />
+          </div>
+          <p className="mt-2 text-sm text-white/80 tabular-nums">
+            {budget.availableMinor > 0
+              ? `${money(budget.spentMinor)} spent of ${money(budget.availableMinor)}`
+              : `${money(budget.spentMinor)} spent`}
+          </p>
         </div>
 
-        {budget.availableMinor < 0 ? (
-          <p role="alert" className="mt-4 rounded-xl bg-red-50 p-3 text-sm font-medium text-red-700 dark:bg-red-950/40 dark:text-red-300">
-            Your fixed costs and savings are {money(-budget.availableMinor)} more than your income. Check them in{" "}
-            <Link href="/app/settings" className="underline">
-              Settings
-            </Link>
-            .
-          </p>
-        ) : budget.overspent ? (
-          <p role="alert" className="mt-4 rounded-xl bg-red-50 p-3 text-sm font-medium text-red-700 dark:bg-red-950/40 dark:text-red-300">
-            You are {money(-budget.leftMinor)} over budget. Try to hold off on spending until{" "}
-            {paydayLabel(budget.nextPayday)}.
-          </p>
-        ) : budget.availableMinor === 0 ? (
-          <p className="mt-4 text-sm opacity-80">Add your income in{" "}
-            <Link href="/app/settings" className="font-semibold text-brand">
-              Settings
-            </Link>{" "}
-            to see what you can spend.</p>
-        ) : null}
+        <div className="relative mt-5 grid grid-cols-2 gap-3">
+          <div className="rounded-2xl bg-white/15 p-3.5 [container-type:inline-size]">
+            <p className="text-sm text-white/80">Per day</p>
+            {budget.overspent ? (
+              <p className="mt-1 text-xl font-bold">Nothing left</p>
+            ) : (
+              <p
+                aria-live="polite"
+                className="mt-1 whitespace-nowrap font-bold leading-none tracking-tight"
+                style={{ fontSize: fitSize(digits(money(budget.perDayMinor)), 1.75) }}
+              >
+                <Money minor={budget.perDayMinor} currency={currency} />
+              </p>
+            )}
+            <p className="mt-1 text-xs text-white/75">{budget.overspent ? "until payday" : "to stay on budget"}</p>
+          </div>
+          <div className="rounded-2xl bg-white/15 p-3.5">
+            <p className="flex items-center gap-1.5 text-sm text-white/80">
+              <CalendarDays size={14} aria-hidden /> Payday
+            </p>
+            <p className="mt-1 text-[1.75rem] leading-none font-bold tracking-tight">
+              <span className="tabular-nums">{budget.daysLeft}</span>
+              <span className="ml-1 text-base font-semibold">{budget.daysLeft === 1 ? "day" : "days"}</span>
+            </p>
+            <p className="mt-1 text-xs text-white/75">{paydayLabel(budget.nextPayday)}</p>
+          </div>
+        </div>
       </section>
+
+      {budget.availableMinor < 0 ? (
+        <p role="alert" className="rounded-2xl bg-red-50 p-4 text-sm font-medium text-red-700 dark:bg-red-950/40 dark:text-red-300">
+          Your fixed costs and savings are {money(-budget.availableMinor)} more than your income. Check them in{" "}
+          <Link href="/app/settings" className="underline">
+            Settings
+          </Link>
+          .
+        </p>
+      ) : budget.overspent ? (
+        <p role="alert" className="rounded-2xl bg-red-50 p-4 text-sm font-medium text-red-700 dark:bg-red-950/40 dark:text-red-300">
+          You are {money(-budget.leftMinor)} over budget. Try to hold off on spending until {paydayLabel(budget.nextPayday)}.
+        </p>
+      ) : budget.availableMinor === 0 ? (
+        <p className="rounded-2xl bg-black/[0.04] p-4 text-sm dark:bg-white/[0.06]">
+          Add your income in{" "}
+          <Link href="/app/settings" className="font-semibold text-brand">
+            Settings
+          </Link>{" "}
+          to see what you can spend.
+        </p>
+      ) : null}
+
       <FamilyBudgets household={household} me={me} />
 
       <section aria-label="Recent expenses" className="rounded-3xl border border-black/10 p-5 dark:border-white/10">
@@ -217,54 +242,80 @@ export function Dashboard({ household, me, settings, fixedCosts, onSignOut, sign
           </Link>
         </div>
         {recent.length === 0 ? (
-          <p className="mt-3 text-sm opacity-70">Nothing yet. Scan a receipt or tap “Add expense” to record your first one.</p>
+          <div className="mt-4 flex flex-col items-center gap-2 rounded-2xl bg-black/[0.03] px-4 py-6 text-center dark:bg-white/[0.04]">
+            <Receipt size={28} aria-hidden className="text-brand" />
+            <p className="text-sm opacity-75">Nothing yet. Scan a receipt or add an expense to record your first one.</p>
+          </div>
         ) : (
-          <ul className="mt-3 flex flex-col gap-1">
-            {recent.map((e) => (
-              <li key={e.id} className="flex items-center gap-3 py-1.5">
-                <CategoryBadge category={e.category} showLabel={false} size="sm" />
-                <span className="min-w-0 flex-1 truncate">{e.note || e.merchant || getCategory(e.category).label}</span>
-                <span className="shrink-0 font-medium tabular-nums">{money(e.amountMinor)}</span>
-              </li>
-            ))}
+          <ul className="mt-2 flex flex-col">
+            {recent.map((e) => {
+              const payer = memberById.get(e.memberId);
+              return (
+                <li key={e.id} className="flex items-center gap-3 py-2">
+                  <CategoryBadge category={e.category} showLabel={false} />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate font-medium">{e.note || e.merchant || getCategory(e.category).label}</span>
+                    <span className="flex items-center gap-1.5 overflow-hidden text-xs whitespace-nowrap opacity-65">
+                      {dayLabel(e.spentOn, today)}
+                      {payer && members.length > 1 ? (
+                        <>
+                          <span aria-hidden>·</span>
+                          <span className="size-2 rounded-full" style={{ backgroundColor: payer.color }} aria-hidden />
+                          {payer.id === me.id ? "You" : payer.name.split(" ")[0]}
+                        </>
+                      ) : null}
+                      {e.source === "receipt" ? (
+                        <>
+                          <span aria-hidden>·</span>
+                          <Receipt size={12} aria-hidden /> Receipt
+                        </>
+                      ) : null}
+                    </span>
+                  </span>
+                  <span className="shrink-0 font-semibold tabular-nums">{money(e.amountMinor)}</span>
+                </li>
+              );
+            })}
           </ul>
         )}
       </section>
 
-      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-30 mx-auto flex max-w-md flex-col items-stretch gap-3 px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
-        {lastSaved ? (
-          <div
-            role="status"
-            className="pointer-events-auto flex items-center justify-between gap-3 rounded-2xl bg-neutral-900 px-4 py-3 text-sm text-white shadow-lg dark:bg-neutral-100 dark:text-neutral-900"
-          >
-            <span>Saved {money(lastSaved.amountMinor)}</span>
+      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-30 bg-gradient-to-t from-background from-55% to-transparent pt-12">
+        <div className="mx-auto flex max-w-md flex-col items-stretch gap-3 px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
+          {lastSaved ? (
+            <div
+              role="status"
+              className="pointer-events-auto flex items-center justify-between gap-3 rounded-2xl bg-neutral-900 px-4 py-3 text-sm text-white shadow-lg dark:bg-neutral-100 dark:text-neutral-900"
+            >
+              <span>Saved {money(lastSaved.amountMinor)}</span>
+              <button
+                type="button"
+                onClick={async () => {
+                  const id = lastSaved.id;
+                  setLastSaved(null);
+                  await removeExpense(id);
+                }}
+                className="font-semibold text-accent"
+              >
+                Undo
+              </button>
+            </div>
+          ) : null}
+          <div className="pointer-events-auto grid grid-cols-2 gap-3">
+            <Link
+              href="/app/scan"
+              className="flex h-14 items-center justify-center gap-2 rounded-2xl bg-brand text-lg font-semibold text-white shadow-lg shadow-brand/25 transition hover:bg-brand-strong active:scale-[0.98]"
+            >
+              <Camera size={22} aria-hidden /> Scan receipt
+            </Link>
             <button
               type="button"
-              onClick={async () => {
-                const id = lastSaved.id;
-                setLastSaved(null);
-                await removeExpense(id);
-              }}
-              className="font-semibold text-accent"
+              onClick={() => setAdding(true)}
+              className="flex h-14 items-center justify-center gap-2 rounded-2xl bg-neutral-900 text-lg font-semibold text-white shadow-lg transition active:scale-[0.98] dark:bg-neutral-800"
             >
-              Undo
+              <Plus size={22} aria-hidden /> Add expense
             </button>
           </div>
-        ) : null}
-        <div className="pointer-events-auto grid grid-cols-[auto_1fr] gap-3">
-          <Link
-            href="/app/scan"
-            className="flex h-14 items-center justify-center gap-2 rounded-2xl bg-neutral-900 px-5 text-lg font-semibold text-white shadow-lg transition active:scale-[0.98] dark:bg-neutral-100 dark:text-neutral-900"
-          >
-            <Camera size={22} aria-hidden /> Scan
-          </Link>
-          <button
-            type="button"
-            onClick={() => setAdding(true)}
-            className="flex h-14 items-center justify-center gap-2 rounded-2xl bg-brand text-lg font-semibold text-white shadow-lg transition hover:bg-brand-strong active:scale-[0.98]"
-          >
-            <Plus size={22} aria-hidden /> Add expense
-          </button>
         </div>
       </div>
     </main>

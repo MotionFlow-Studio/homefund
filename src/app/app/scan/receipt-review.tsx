@@ -3,6 +3,7 @@
 import { ArrowLeft, Check, Plus, X } from "lucide-react";
 import { useState } from "react";
 import { CategoryBadge } from "@/components/category-badge";
+import { Money } from "@/components/money";
 import { ReceiptCheckNotice } from "@/components/receipt-check-notice";
 import { Button } from "@/components/ui/button";
 import { MoneyInput } from "@/components/ui/money-input";
@@ -14,7 +15,7 @@ import { currencyDecimals, formatMoney, fromMinor, toMinor } from "@/lib/money";
 import type { Expense, Household, Member } from "@/lib/model";
 import type { ReceiptScan } from "@/lib/receipt";
 import { checkReceipt } from "@/lib/receipt-check";
-import { mainCategory, scaleToTotal } from "@/lib/receipt-review";
+import { categorySplit, mainCategory, scaleToTotal } from "@/lib/receipt-review";
 
 type Line = {
   key: string;
@@ -98,6 +99,7 @@ export function ReceiptReview({
     household.currency,
   );
   const money = (minor: number) => formatMoney(minor, currency);
+  const split = categorySplit(lines.map((line, index) => ({ category: line.category, amountMinor: amounts[index] ?? 0 })));
 
   function update(key: string, changes: Partial<Line>) {
     setLines((current) => current.map((line) => (line.key === key ? { ...line, ...changes } : line)));
@@ -204,25 +206,57 @@ export function ReceiptReview({
         <h1 className="flex-1 text-lg font-semibold">Check receipt</h1>
       </header>
 
-      <section aria-label="Receipt summary">
+      <section
+        aria-label="Receipt summary"
+        className="rounded-3xl border border-black/10 bg-black/[0.02] p-5 dark:border-white/10 dark:bg-white/[0.03]"
+      >
         <input
           value={merchant}
           onChange={(e) => setMerchant(e.target.value)}
           placeholder="Shop name"
           aria-label="Shop name"
           maxLength={120}
-          className="w-full bg-transparent text-sm font-medium opacity-80 outline-none focus:opacity-100"
+          className="w-full truncate rounded-md bg-transparent text-sm font-semibold tracking-wide opacity-70 outline-none focus:opacity-100"
         />
-        <p className="mt-1 text-4xl font-bold tabular-nums">{money(linesTotal)}</p>
+        <p className="mt-1 text-4xl font-bold tracking-tight">
+          <Money minor={linesTotal} currency={currency} />
+        </p>
         {receipt.totalMinor !== null ? (
-          <p className={`mt-1 flex items-center gap-1 text-sm ${check.totalsMatch ? "text-brand" : "opacity-70"}`}>
-            {check.totalsMatch ? <Check size={16} aria-hidden /> : null}
+          <p
+            className={`mt-2 inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${
+              check.totalsMatch ? "bg-brand/10 text-brand" : "bg-black/5 dark:bg-white/10"
+            }`}
+          >
+            {check.totalsMatch ? <Check size={14} aria-hidden /> : null}
             Receipt total {money(receipt.totalMinor)}
             {check.totalsMatch ? " · matches" : ""}
           </p>
         ) : null}
         {receipt.savedMinor > 0 ? (
-          <p className="mt-1 text-sm font-medium text-brand">Discounts {money(receipt.savedMinor)} already taken off</p>
+          <p className="mt-2 text-sm font-medium text-brand">Discounts {money(receipt.savedMinor)} already taken off</p>
+        ) : null}
+
+        {split.length > 0 && linesTotal > 0 ? (
+          <div className="mt-5">
+            <div className="flex h-2.5 gap-0.5 overflow-hidden rounded-full" aria-hidden>
+              {split.map(({ category, amountMinor }) => (
+                <div
+                  key={category}
+                  className="h-full first:rounded-l-full last:rounded-r-full"
+                  style={{ width: `${(amountMinor / linesTotal) * 100}%`, backgroundColor: getCategory(category).color }}
+                />
+              ))}
+            </div>
+            <ul aria-label="By category" className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 text-sm">
+              {split.map(({ category, amountMinor }) => (
+                <li key={category} className="flex items-center gap-1.5">
+                  <span className="size-2.5 rounded-full" style={{ backgroundColor: getCategory(category).color }} aria-hidden />
+                  <span className="opacity-80">{getCategory(category).label}</span>
+                  <span className="font-semibold tabular-nums">{money(amountMinor)}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
         ) : null}
       </section>
 
@@ -389,7 +423,7 @@ export function ReceiptReview({
             </p>
           ) : null}
           <Button onClick={save} loading={saving}>
-            Save expense
+            {linesTotal > 0 && !foreign ? `Save ${money(linesTotal)}` : "Save expense"}
           </Button>
         </div>
       </div>

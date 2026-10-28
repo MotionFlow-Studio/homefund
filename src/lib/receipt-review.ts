@@ -27,6 +27,18 @@ export function scaleToTotal(amounts: number[], total: number): number[] {
   return shares.map((share) => share.whole);
 }
 
+/** Money per category, largest first; categories without money are left out. */
+export function categorySplit(
+  lines: { category: CategoryId; amountMinor: number }[],
+): { category: CategoryId; amountMinor: number }[] {
+  const totals = new Map<CategoryId, number>();
+  for (const line of lines) totals.set(line.category, (totals.get(line.category) ?? 0) + line.amountMinor);
+  return [...totals]
+    .filter(([, amountMinor]) => amountMinor > 0)
+    .map(([category, amountMinor]) => ({ category, amountMinor }))
+    .sort((a, b) => b.amountMinor - a.amountMinor);
+}
+
 /** The category with the most money on the receipt; ties go to the first one listed. */
 export function mainCategory(lines: { category: CategoryId; amountMinor: number }[]): CategoryId {
   const totals = new Map<CategoryId, number>();

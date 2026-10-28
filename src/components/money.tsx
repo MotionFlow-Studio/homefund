@@ -7,7 +7,11 @@ export function Money({ minor, currency, className = "" }: { minor: number; curr
     <span className={`tabular-nums ${className}`} aria-label={formatMoney(minor, currency)}>
       {parts.map((part, i) =>
         part.type === "symbol" ? (
-          <span key={i} aria-hidden className="mx-[0.12em] text-[0.55em] font-medium align-[0.35em] opacity-80">
+          <span
+            key={i}
+            aria-hidden
+            className={`text-[0.55em] font-medium align-[0.35em] opacity-80 ${i === 0 ? "mr-[0.3em]" : "ml-[0.3em]"}`}
+          >
             {part.value}
           </span>
         ) : (
