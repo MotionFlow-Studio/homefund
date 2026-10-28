@@ -9,7 +9,9 @@
     "lint": "eslint",
     "test": "vitest run",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate"
+    "db:migrate": "drizzle-kit migrate",
+    "check:leaks": "node scripts/check-leaks.mjs",
+    "icons": "node scripts/make-icons.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",

@@ -19,6 +19,11 @@ A family budget web app that installs on any phone like a native app. Set your p
   database, a cache or a log, and its bytes are wiped when the request ends.
 - Only the result is kept: shop, date, amounts, items and categories.
 - The Meta API key stays on the server; the phone never sees it.
+- `npm run check:leaks` verifies that no key and no receipt photo is in the
+  repository, its full git history or the build sent to browsers. The only
+  images in the repository are the app artwork and three self-made test
+  receipts in `test/fixtures/`. The database has no column that could hold
+  an image, and no files are stored in Supabase.
 
 ## Delete my data
 
