@@ -103,9 +103,17 @@ groceries / household / kids) was exactly right with `low` effort.
   discounts.
 - Subtotals, VAT summaries, payment and loyalty lines are left out; bottle
   deposits are kept as lines in their drink's category.
-- The answer says whether the lines add up to the printed total
-  (`totalsMatch`). If they do not, the receipt is read once more with
-  `medium` effort (if at least 15 s are left) and the answer that adds up wins.
+- Every answer carries a `check` (`src/lib/receipt-check.ts`, also run in the
+  app while the user corrects lines):
+  - lines vs. printed total, allowing cash rounding to the smallest coin
+    (e.g. 2.50 Ft for HUF, 0.02 for EUR and CHF, exact for RON);
+  - quantity x unit price vs. each line's amount before discounts;
+  - missing total, missing date, assumed currency, or a currency other than
+    the household's.
+  `status: "check"` marks receipts the review screen must warn about.
+- If the lines do not add up, the receipt is read once more with `medium`
+  effort (if at least 15 s are left) and the answer that adds up wins. A
+  receipt whose printed total really is wrong stays flagged (tested: 18 s).
 - Dates in the future are dropped; a receipt with no printed currency uses
   the household currency (`currencyDetected: false`).
 - The answer includes `crop`: where the receipt was found, as fractions of

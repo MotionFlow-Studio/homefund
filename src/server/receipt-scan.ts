@@ -34,7 +34,8 @@ const PROMPT = [
   '- kind "item_discount": a discount printed under a product. line_total is negative.',
   '- kind "receipt_discount": a coupon or discount for the whole receipt, usually after the',
   "  subtotal. line_total is negative.",
-  "Leave out subtotals, VAT or tax summaries, payment, change, cashback and loyalty point lines.",
+  "Leave out subtotals, VAT or tax summaries, cash rounding, payment, change, cashback and loyalty",
+  "point lines.",
   "",
   "total: the final amount paid, as printed.",
   'currency: ISO 4217 code from the printed symbol or word ("Ft" -> HUF, "lei" -> RON, "€" -> EUR),',
@@ -82,10 +83,10 @@ export async function scanReceipt(
   // If the lines do not add up to the printed total, read once more, more
   // carefully, as long as there is time; keep whichever answer adds up.
   const needsSecondLook =
-    !parsed.ok ? parsed.reason === "invalid" : parsed.receipt.totalMinor !== null && !parsed.receipt.totalsMatch;
+    !parsed.ok ? parsed.reason === "invalid" : parsed.receipt.totalMinor !== null && !parsed.receipt.check.totalsMatch;
   if (needsSecondLook && Date.now() - started < RECEIPT_TIMEOUT_MS - RETRY_TIME_LEFT_MS) {
     const second = await read(image, "medium", fallbackCurrency, signal);
-    if (second.ok && (!parsed.ok || second.receipt.totalsMatch)) parsed = second;
+    if (second.ok && (!parsed.ok || second.receipt.check.totalsMatch)) parsed = second;
   }
 
   if (!parsed.ok) throw new ScanError(parsed.reason === "not_a_receipt" ? "not_a_receipt" : "scan_failed");

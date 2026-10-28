@@ -6,6 +6,7 @@ import { z } from "zod";
 import { CATEGORY_IDS } from "@/lib/categories";
 import { currencyDecimals, isCurrency } from "@/lib/money";
 import type { ReceiptScan, ScannedItem } from "@/lib/receipt";
+import { checkReceipt } from "@/lib/receipt-check";
 
 export type Box = { x1: number; y1: number; x2: number; y2: number; w: number; h: number; c: number };
 
@@ -228,6 +229,7 @@ export function parseReceiptJson(text: string, fallbackCurrency: string, now = n
       } else {
         const taken = Math.min(discount, previous.lineTotalMinor);
         previous.lineTotalMinor -= taken;
+        previous.discountMinor += taken;
         savedMinor += taken;
       }
       continue;
@@ -238,6 +240,7 @@ export function parseReceiptJson(text: string, fallbackCurrency: string, now = n
       quantityMilli: quantityToMilli(line.quantity),
       unitPrice: normalizeUnitPrice(line.unit_price),
       lineTotalMinor: lineTotal,
+      discountMinor: 0,
       category: line.category,
     });
   }
@@ -250,7 +253,10 @@ export function parseReceiptJson(text: string, fallbackCurrency: string, now = n
       items.map((item) => item.lineTotalMinor),
       receiptDiscount,
     );
-    after.forEach((total, index) => (items[index].lineTotalMinor = total));
+    after.forEach((total, index) => {
+      items[index].discountMinor += items[index].lineTotalMinor - total;
+      items[index].lineTotalMinor = total;
+    });
     savedMinor += before - after.reduce((a, b) => a + b, 0);
   }
 
@@ -258,19 +264,16 @@ export function parseReceiptJson(text: string, fallbackCurrency: string, now = n
   const totalMinor = total !== null && total >= 0 ? total : null;
   const itemsTotalMinor = items.reduce((sum, item) => sum + item.lineTotalMinor, 0);
 
-  return {
-    ok: true,
-    receipt: {
-      merchant: cleanText(data.merchant, 80),
-      spentOn: validDate(data.date, now),
-      currency,
-      currencyDetected,
-      totalMinor,
-      itemsTotalMinor,
-      totalsMatch: totalMinor !== null && totalMinor === itemsTotalMinor,
-      savedMinor,
-      items,
-      crop: null,
-    },
+  const receipt = {
+    merchant: cleanText(data.merchant, 80),
+    spentOn: validDate(data.date, now),
+    currency,
+    currencyDetected,
+    totalMinor,
+    itemsTotalMinor,
+    savedMinor,
+    items,
+    crop: null,
   };
+  return { ok: true, receipt: { ...receipt, check: checkReceipt(receipt, fallbackCurrency) } };
 }

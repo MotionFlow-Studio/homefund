@@ -1,4 +1,5 @@
 import type { CategoryId } from "@/lib/categories";
+import type { ReceiptCheck } from "@/lib/receipt-check";
 
 /** One purchased line, ready to be saved as a receipt item. */
 export type ScannedItem = {
@@ -9,6 +10,8 @@ export type ScannedItem = {
   unitPrice: string | null;
   /** What was paid for the line, discounts included, in minor units. */
   lineTotalMinor: number;
+  /** Discounts and its share of coupons already taken off this line. */
+  discountMinor: number;
   category: CategoryId;
 };
 
@@ -25,10 +28,10 @@ export type ReceiptScan = {
   totalMinor: number | null;
   /** Sum of the line totals. */
   itemsTotalMinor: number;
-  /** True when the line totals add up to the printed total. */
-  totalsMatch: boolean;
   /** Discounts and coupons on the receipt, already taken off the lines. */
   savedMinor: number;
+  /** What looks wrong and needs a second look before saving. */
+  check: ReceiptCheck;
   items: ScannedItem[];
   /**
    * Where the receipt was found, as fractions (0-1) of the upright photo, or

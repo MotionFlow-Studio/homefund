@@ -93,8 +93,8 @@ describe("receipt JSON", () => {
       currencyDetected: true,
       totalMinor: 1249,
       itemsTotalMinor: 1249,
-      totalsMatch: true,
       savedMinor: 100,
+      check: { status: "ok", totalsMatch: true, warnings: [{ code: "other_currency", currency: "RON" }] },
     });
     expect(result.receipt.items.map((item) => [item.name, item.lineTotalMinor, item.quantityMilli])).toEqual([
       ["Milk", 800, 2000],
@@ -108,7 +108,7 @@ describe("receipt JSON", () => {
       currency: "EUR",
       currencyDetected: false,
       spentOn: null,
-      totalsMatch: false,
+      check: { status: "check", totalsMatch: false, differenceMinor: 1249 - 9900 },
     });
   });
 
@@ -124,8 +124,12 @@ describe("receipt JSON", () => {
       }),
       "EUR",
     );
-    expect(result.ok && result.receipt.items.map((item) => item.lineTotalMinor)).toEqual([672, 377]);
-    expect(result.ok && result.receipt).toMatchObject({ itemsTotalMinor: 1049, totalsMatch: true, savedMinor: 200 });
+    expect(result.ok && result.receipt.items.map((item) => [item.lineTotalMinor, item.discountMinor])).toEqual([
+      [672, 128],
+      [377, 72],
+    ]);
+    expect(result.ok && result.receipt.check.totalsMatch).toBe(true);
+    expect(result.ok && result.receipt).toMatchObject({ itemsTotalMinor: 1049, savedMinor: 200 });
   });
 
   it("drops purchase dates in the future", () => {
