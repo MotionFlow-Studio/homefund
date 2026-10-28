@@ -1,10 +1,9 @@
 import "server-only";
-import sharp from "sharp";
+import sharp, { type Sharp } from "sharp";
 import { CATEGORY_LIST } from "@/lib/categories";
-import type { ReceiptScan } from "@/lib/receipt";
-import { RECEIPT_UPLOAD_MAX_SIDE } from "@/lib/receipt-limits";
+import type { CropArea, ReceiptScan } from "@/lib/receipt";
 import { readImageAsJson, segment } from "@/server/meta-api";
-import { bestBox, cropRect, parseReceiptJson, RECEIPT_JSON_SCHEMA } from "@/server/receipt-parse";
+import { bestBox, cropArea, cropRect, parseReceiptJson, RECEIPT_JSON_SCHEMA } from "@/server/receipt-parse";
 
 /** Reading failed for a reason the user can act on. */
 export class ScanError extends Error {
@@ -32,10 +31,22 @@ const PROMPT = [
   "If the image is not a receipt, set is_receipt to false and return no items.",
 ].join("\n");
 
+/** Largest photo kept for cropping (longest side, pixels). */
+const SOURCE_MAX_SIDE = 4096;
+
+/** SAM looks for the receipt on a copy this size; it only needs the outline. */
+const DETECT_MAX_SIDE = 1600;
+
+/** The cropped receipt is sent to Muse Spark at most this size. */
+const READ_MAX_WIDTH = 1024;
+const READ_MAX_HEIGHT = 1600;
+
+type Photo = { data: Buffer; width: number; height: number };
+
 /**
- * Reads a receipt photo: SAM 3.1 finds the receipt, the photo is cropped to
- * it, and Muse Spark 1.3 reads the lines. Everything happens in memory; the
- * photo is never written anywhere.
+ * Reads a receipt photo: SAM 3.1 finds the receipt on a small copy, the
+ * sharp original is cropped to it, and Muse Spark 1.3 reads the lines.
+ * Everything happens in memory; the photo is never written anywhere.
  */
 export async function scanReceipt(
   bytes: Uint8Array,
@@ -43,16 +54,16 @@ export async function scanReceipt(
   signal: AbortSignal,
 ): Promise<ReceiptScan> {
   const photo = await normalize(bytes);
-  const cropped = await cropToReceipt(photo, signal);
+  const { image, crop } = await cropToReceipt(photo, signal);
 
-  const json = await readImageAsJson(cropped, PROMPT, { name: "receipt", schema: RECEIPT_JSON_SCHEMA }, signal);
+  const json = await readImageAsJson(image, PROMPT, { name: "receipt", schema: RECEIPT_JSON_SCHEMA }, signal);
   const parsed = parseReceiptJson(json, fallbackCurrency);
   if (!parsed.ok) throw new ScanError(parsed.reason === "not_a_receipt" ? "not_a_receipt" : "scan_failed");
-  return parsed.receipt;
+  return { ...parsed.receipt, crop };
 }
 
 /** Checks the image, turns it upright, removes its metadata and caps its size. */
-async function normalize(bytes: Uint8Array) {
+async function normalize(bytes: Uint8Array): Promise<Photo> {
   try {
     const image = sharp(bytes, { limitInputPixels: MAX_INPUT_PIXELS, failOn: "error" });
     const { format } = await image.metadata();
@@ -60,8 +71,8 @@ async function normalize(bytes: Uint8Array) {
 
     const { data, info } = await image
       .rotate()
-      .resize({ width: RECEIPT_UPLOAD_MAX_SIDE, height: RECEIPT_UPLOAD_MAX_SIDE, fit: "inside", withoutEnlargement: true })
-      .jpeg({ quality: 85 })
+      .resize({ width: SOURCE_MAX_SIDE, height: SOURCE_MAX_SIDE, fit: "inside", withoutEnlargement: true })
+      .jpeg({ quality: 92 })
       .toBuffer({ resolveWithObject: true });
     return { data, width: info.width, height: info.height };
   } catch (error) {
@@ -70,26 +81,45 @@ async function normalize(bytes: Uint8Array) {
   }
 }
 
+/** Small receipts are enlarged up to this much so their print stays legible. */
+const MAX_ENLARGEMENT = 2;
+
+/** Scales an image of the given size to fit the reading size. */
+function fitForReading(image: Sharp, width: number, height: number) {
+  const scale = Math.min(READ_MAX_WIDTH / width, READ_MAX_HEIGHT / height, MAX_ENLARGEMENT);
+  return image
+    .resize({ width: Math.round(width * scale), height: Math.round(height * scale), fit: "fill" })
+    .jpeg({ quality: 85 })
+    .toBuffer();
+}
+
 /**
- * Crops the photo to the receipt so the reader sees only the paper. If SAM
+ * Crops the photo to the receipt so the reader sees only the paper, at full
+ * sharpness even when the receipt fills a small part of the photo. If SAM
  * finds nothing or is unavailable, the whole photo is read instead.
  */
-async function cropToReceipt(photo: { data: Buffer; width: number; height: number }, signal: AbortSignal) {
+async function cropToReceipt(photo: Photo, signal: AbortSignal): Promise<{ image: Buffer; crop: CropArea | null }> {
+  const whole = async () => ({ image: await fitForReading(sharp(photo.data), photo.width, photo.height), crop: null });
+
   let box;
   try {
-    box = bestBox(await segment(photo.data, "receipt", signal));
+    const small = await sharp(photo.data)
+      .resize({ width: DETECT_MAX_SIDE, height: DETECT_MAX_SIDE, fit: "inside", withoutEnlargement: true })
+      .jpeg({ quality: 85 })
+      .toBuffer();
+    box = bestBox(await segment(small, "receipt", signal));
   } catch (error) {
     if (signal.aborted) throw error;
     box = null;
   }
-  if (!box || box.c < MIN_BOX_CONFIDENCE) return photo.data;
+  if (!box || box.c < MIN_BOX_CONFIDENCE) return whole();
 
-  const rect = cropRect(box, photo.width, photo.height);
-  if (rect.width < 32 || rect.height < 32) return photo.data;
+  const padding = Math.round(Math.max(photo.width, photo.height) * 0.012);
+  const rect = cropRect(box, photo.width, photo.height, padding);
+  if (rect.width < 64 || rect.height < 64) return whole();
 
-  return sharp(photo.data)
-    .extract(rect)
-    .resize({ width: 1024, height: 1600, fit: "inside", withoutEnlargement: true })
-    .jpeg({ quality: 85 })
-    .toBuffer();
+  return {
+    image: await fitForReading(sharp(photo.data).extract(rect), rect.width, rect.height),
+    crop: cropArea(rect, photo.width, photo.height),
+  };
 }

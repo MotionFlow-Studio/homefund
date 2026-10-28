@@ -28,7 +28,14 @@ export type ReceiptScan = {
   /** True when the line totals add up to the printed total. */
   totalsMatch: boolean;
   items: ScannedItem[];
+  /**
+   * Where the receipt was found, as fractions (0-1) of the upright photo, or
+   * null when the whole photo was read. Lets the app highlight what was read.
+   */
+  crop: CropArea | null;
 };
+
+export type CropArea = { x: number; y: number; width: number; height: number };
 
 /** Error codes returned by POST /api/receipt/scan. */
 export type ReceiptScanError =

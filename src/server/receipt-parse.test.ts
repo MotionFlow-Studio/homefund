@@ -3,6 +3,7 @@ import { createRateLimiter } from "./rate-limit";
 import {
   amountToMinor,
   bestBox,
+  cropArea,
   cropRect,
   normalizeUnitPrice,
   parseReceiptJson,
@@ -126,5 +127,16 @@ describe("rate limiter", () => {
     expect(limiter.retryAfter("a", 2_000)).toBe(58);
     expect(limiter.retryAfter("b", 2_000)).toBe(0);
     expect(limiter.retryAfter("a", 60_001)).toBe(0);
+  });
+});
+
+describe("crop area", () => {
+  it("reports the crop as fractions of the photo", () => {
+    expect(cropArea({ left: 216, top: 73, width: 429, height: 808 }, 800, 1000)).toEqual({
+      x: 0.27,
+      y: 0.073,
+      width: 0.5363,
+      height: 0.808,
+    });
   });
 });

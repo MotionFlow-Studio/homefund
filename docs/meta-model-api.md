@@ -14,10 +14,12 @@ with `test/fixtures/receipt-lidl-ro.jpg`.
 
 ```
 photo (browser, memory only)
-  -> shrink in the browser to max 2048 px, JPEG 85 (usually 0.5-2 MB)
+  -> shrink in the browser to max 3072 px, JPEG 85 (usually 1-3 MB)
   -> POST /api/receipt/scan (our server, rejects anything over 10 MB)
-  -> SAM 3.1: find the receipt, get its box
-  -> crop to the box + 20 px, resize to max 1024 x 1600, JPEG 85
+  -> turn upright, strip metadata, keep up to 4096 px
+  -> SAM 3.1 on a 1600 px copy: find the receipt, get its box
+  -> crop the full-size photo to the box + 1.2% padding, fit to
+     1024 x 1600 (small receipts enlarged up to 2x), JPEG 85
   -> Muse Spark 1.3: read items into a fixed JSON schema
   -> validate (items add up to the total)
   -> JSON back to the browser; the image is dropped
@@ -97,7 +99,11 @@ groceries / household / kids) was exactly right with `low` effort.
 - Discounts printed under an item are taken off that item, so every line
   holds what was actually paid. The answer says whether the lines add up to
   the printed total (`totalsMatch`).
-- Measured on the test receipt: 7/7 lines, 105.07 RON, about 8.5 s.
+- The answer includes `crop`: where the receipt was found, as fractions of
+  the upright photo (null when the whole photo was read).
+- Measured: 7/7 lines and 105.07 RON both for the test receipt and for the
+  same receipt photographed small and tilted on a table or pushed into a
+  corner (it fills 5-10% of the photo); about 7.5-8 s each.
 
 ## Cost per scanned receipt
 

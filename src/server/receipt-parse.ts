@@ -53,6 +53,12 @@ export function cropRect(box: Box, width: number, height: number, padding = 20) 
   return { left, top, width: right - left, height: bottom - top };
 }
 
+/** A crop rectangle as rounded fractions of the image size. */
+export function cropArea(rect: { left: number; top: number; width: number; height: number }, width: number, height: number) {
+  const round = (value: number) => Math.round(value * 10_000) / 10_000;
+  return { x: round(rect.left / width), y: round(rect.top / height), width: round(rect.width / width), height: round(rect.height / height) };
+}
+
 /**
  * Converts a printed amount to minor units: "105.07" RON -> 10507,
  * "1 299" HUF -> 129900, "-3,50" EUR -> -350. Extra decimals are rounded
@@ -210,6 +216,7 @@ export function parseReceiptJson(text: string, fallbackCurrency: string): Parsed
       itemsTotalMinor,
       totalsMatch: totalMinor !== null && totalMinor === itemsTotalMinor,
       items,
+      crop: null,
     },
   };
 }
