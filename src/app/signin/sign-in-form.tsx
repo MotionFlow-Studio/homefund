@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { nextPath } from "@/lib/next-path";
 import { useState, type FormEvent } from "react";
 import { AuthCard } from "@/components/auth-card";
 import { Button } from "@/components/ui/button";
@@ -28,7 +29,7 @@ export function SignInForm() {
     setLoading(false);
 
     if (result.ok) {
-      router.replace("/app");
+      router.replace(nextPath());
     } else {
       setError(AUTH_ERROR_TEXT[result.error]);
     }

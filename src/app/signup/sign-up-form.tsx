@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { nextPath } from "@/lib/next-path";
 import { useState, type FormEvent } from "react";
 import { AuthCard } from "@/components/auth-card";
 import { Button } from "@/components/ui/button";
@@ -38,7 +39,7 @@ export function SignUpForm() {
     if (!result.ok) {
       setErrors({ form: AUTH_ERROR_TEXT[result.error] });
     } else if (result.value.status === "signed_in") {
-      router.replace("/app");
+      router.replace(nextPath());
     } else {
       setCheckEmail(true);
     }

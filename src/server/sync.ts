@@ -93,6 +93,7 @@ async function push(userId: string, changes: ChangeSet): Promise<number> {
     const allowed = await householdsOf(tx, userId);
 
     const incomingMembers = valid(memberSchema, changes.members);
+    const createdHouseholds = new Set<string>();
 
     // Households: existing ones the user belongs to, or brand-new ones the user creates as owner.
     for (const household of valid(householdSchema, changes.households)) {
@@ -103,22 +104,44 @@ async function push(userId: string, changes: ChangeSet): Promise<number> {
         );
         if (existing || !createsAsOwner) continue;
         allowed.add(household.id);
+        createdHouseholds.add(household.id);
       }
       await upsertLatest(tx, households, "id", household);
       applied++;
     }
 
-    // Members: only inside the user's households, never moved between households,
-    // and only linked to the user's own account (others join through invites).
+    // Members: only inside the user's households and never moved between them.
+    // Roles never change through sync: owners exist only by creating a
+    // household, adults only by joining with an invite. A member's account
+    // link can only be set to the user's own account, and only the owner may
+    // unlink or remove someone else's account.
+    const ownerOf = new Set(
+      (
+        await tx
+          .select({ householdId: members.householdId })
+          .from(members)
+          .where(and(eq(members.userId, userId), eq(members.role, "owner"), isNull(members.deletedAt)))
+      ).map((r) => r.householdId),
+    );
     for (const member of incomingMembers) {
       if (!allowed.has(member.householdId)) continue;
       const [existing] = await tx
-        .select({ householdId: members.householdId, userId: members.userId })
+        .select({ householdId: members.householdId, userId: members.userId, role: members.role })
         .from(members)
         .where(eq(members.id, member.id));
-      if (existing && existing.householdId !== member.householdId) continue;
-      const userIdChanged = (existing?.userId ?? null) !== member.userId;
-      if (userIdChanged && member.userId !== null && member.userId !== userId) continue;
+      if (existing) {
+        if (existing.householdId !== member.householdId || existing.role !== member.role) continue;
+        const othersAccount = existing.userId !== null && existing.userId !== userId;
+        const touchesAccount = existing.userId !== member.userId || member.deletedAt !== null;
+        if (othersAccount && touchesAccount && !ownerOf.has(member.householdId)) continue;
+        if (member.userId !== null && member.userId !== existing.userId && member.userId !== userId) continue;
+      } else {
+        // New members: the owner of a household created in this push, or
+        // people without an account (they cannot sign in).
+        const ownsNewHousehold =
+          member.role === "owner" && member.userId === userId && createdHouseholds.has(member.householdId);
+        if (!ownsNewHousehold && (member.role === "owner" || member.userId !== null)) continue;
+      }
       await upsertLatest(tx, members, "id", member);
       applied++;
     }

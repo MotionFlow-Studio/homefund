@@ -8,6 +8,9 @@ import { isCurrency } from "@/lib/money";
  * these records. Timestamps are ISO 8601 strings; dates are "YYYY-MM-DD".
  */
 
+/** Colors given to members in order, so each one is easy to tell apart. */
+export const MEMBER_COLORS = ["#0f766e", "#2563eb", "#db2777", "#ea580c", "#7c3aed", "#ca8a04"];
+
 export const MEMBER_ROLES = ["owner", "adult", "child"] as const;
 export const EXPENSE_SOURCES = ["manual", "receipt", "voice"] as const;
 

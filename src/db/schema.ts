@@ -162,3 +162,27 @@ export const receiptItems = pgTable(
   },
   (t) => [index("receipt_items_expense_idx").on(t.expenseId, t.serverSeq)],
 ).enableRLS();
+
+/**
+ * Codes that let another adult join a household. Only a hash of the code is
+ * stored. A code works once, until it expires, and the owner can revoke it.
+ * Server-only: never synced to devices.
+ */
+export const invites = pgTable(
+  "invites",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    householdId: uuid("household_id")
+      .notNull()
+      .references(() => households.id),
+    /** SHA-256 of the normalised code, hex. */
+    codeHash: char("code_hash", { length: 64 }).notNull(),
+    createdByUserId: uuid("created_by_user_id").references(() => authUsers.id, { onDelete: "set null" }),
+    createdAt: ts("created_at").notNull(),
+    expiresAt: ts("expires_at").notNull(),
+    usedAt: ts("used_at"),
+    usedByUserId: uuid("used_by_user_id").references(() => authUsers.id, { onDelete: "set null" }),
+    revokedAt: ts("revoked_at"),
+  },
+  (t) => [uniqueIndex("invites_code_hash_unique").on(t.codeHash), index("invites_household_idx").on(t.householdId)],
+).enableRLS();

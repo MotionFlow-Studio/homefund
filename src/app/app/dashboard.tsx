@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarDays, Camera, LogOut, Plus, Settings2 } from "lucide-react";
+import { CalendarDays, Camera, LogOut, Plus, Settings2, Users } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { CategoryBadge } from "@/components/category-badge";
@@ -103,6 +103,12 @@ export function Dashboard({ household, me, settings, fixedCosts, onEditPay, onSi
             >
               <Settings2 size={18} /> Payday and costs
             </button>
+            <Link
+              href="/app/household"
+              className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-black/5 dark:hover:bg-white/10"
+            >
+              <Users size={18} /> Family and invites
+            </Link>
             <button
               type="button"
               onClick={onSignOut}

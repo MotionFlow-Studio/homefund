@@ -3,9 +3,10 @@
 import { useLiveQuery } from "dexie-react-hooks";
 import { localDb } from "@/lib/local/db";
 import { newId, saveHousehold, saveMember } from "@/lib/local/store";
-import type { Household, Member } from "@/lib/model";
+import { MEMBER_COLORS, type Household, type Member } from "@/lib/model";
 
-export const MEMBER_COLORS = ["#0f766e", "#2563eb", "#db2777", "#ea580c", "#7c3aed", "#ca8a04"];
+export { MEMBER_COLORS };
+
 
 export type HouseholdState =
   | { status: "loading" }
