@@ -64,6 +64,7 @@ describe("pace", () => {
   const budget = (spentMinor: number, availableMinor = 310_000) => ({
     ...base,
     availableMinor,
+    extraIncomeMinor: 0,
     spentMinor,
     leftMinor: availableMinor - spentMinor,
     overspent: availableMinor - spentMinor < 0,
@@ -92,7 +93,7 @@ describe("household totals", () => {
       member: member("x", "X"),
       budget: {
         start: "2026-10-10", end: "2026-11-09", nextPayday: "2026-11-10", daysLeft: 13,
-        availableMinor, spentMinor, leftMinor: availableMinor - spentMinor, perDayMinor, overspent: spentMinor > availableMinor,
+        availableMinor, extraIncomeMinor: 0, spentMinor, leftMinor: availableMinor - spentMinor, perDayMinor, overspent: spentMinor > availableMinor,
       },
     });
     expect(householdTotals([mk(350_000, 10_000, 26_153), mk(100_000, 120_000, 0), { member: member("m", "Mia"), budget: null }])).toEqual({

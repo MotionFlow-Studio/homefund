@@ -1,6 +1,6 @@
 import { computeBudget, daysBetween, type Budget } from "@/lib/budget";
 import type { CategoryId } from "@/lib/categories";
-import type { Expense, FixedCost, Member, PaySettings, ReceiptItem } from "@/lib/model";
+import type { Expense, FixedCost, Income, Member, PaySettings, ReceiptItem } from "@/lib/model";
 
 export type MemberBudget = { member: Member; budget: Budget | null };
 
@@ -16,6 +16,7 @@ export function familyBudgets(input: {
   paySettings: PaySettings[];
   fixedCosts: FixedCost[];
   expenses: Expense[];
+  incomes?: Income[];
 }): MemberBudget[] {
   const settingsOf = new Map(input.paySettings.map((s) => [s.memberId, s]));
   return input.members
@@ -35,6 +36,7 @@ export function familyBudgets(input: {
             .filter((c) => c.memberId === member.id && c.deletedAt === null)
             .map((c) => c.amountMinor),
           expenses: input.expenses.filter((e) => e.memberId === member.id && e.deletedAt === null),
+          incomes: (input.incomes ?? []).filter((i) => i.memberId === member.id && i.deletedAt === null),
         }),
       };
     });

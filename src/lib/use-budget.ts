@@ -6,20 +6,33 @@ import { categoryTotals, familyBudgets, type CategoryTotal, type MemberBudget } 
 import { localDb } from "@/lib/local/db";
 import type { Expense, FixedCost, PaySettings } from "@/lib/model";
 
+/** Live extra incomes of a household received between two dates. */
+async function recentIncomes(householdId: string, from: string, to: string) {
+  return localDb()
+    .incomes.where("[householdId+receivedOn]")
+    .between([householdId, from], [householdId, to], true, true)
+    .toArray();
+}
+
 /** The member's live budget for the current pay period. */
 export function useBudget(memberId: string, settings: PaySettings, fixedCosts: FixedCost[]): Budget | null {
   const today = localToday();
   const period = payPeriod(today, settings.paydayDay);
 
-  const expenses = useLiveQuery(
-    async () =>
-      (await localDb().expenses.where("memberId").equals(memberId).toArray()).filter(
+  const entries = useLiveQuery(
+    async () => ({
+      expenses: (await localDb().expenses.where("memberId").equals(memberId).toArray()).filter(
         (e) => e.deletedAt === null && e.spentOn >= period.start && e.spentOn <= period.end,
       ),
+      incomes: (await localDb().incomes.where("memberId").equals(memberId).toArray()).filter(
+        (i) => i.deletedAt === null && i.receivedOn >= period.start && i.receivedOn <= period.end,
+      ),
+    }),
     [memberId, period.start, period.end],
   );
 
-  if (!expenses) return null;
+  if (!entries) return null;
+  const { expenses, incomes } = entries;
   return computeBudget({
     today,
     paydayDay: settings.paydayDay,
@@ -27,6 +40,7 @@ export function useBudget(memberId: string, settings: PaySettings, fixedCosts: F
     fixedCostsMinor: fixedCosts.map((c) => c.amountMinor),
     savingsGoalMinor: settings.savingsGoalMinor,
     expenses,
+    incomes,
   });
 }
 
@@ -44,7 +58,8 @@ export function useFamilyBudgets(householdId: string, meId: string): MemberBudge
       .where("[householdId+spentOn]")
       .between([householdId, addDays(today, -31)], [householdId, today], true, true)
       .toArray();
-    return familyBudgets({ today, meId, members, paySettings, fixedCosts, expenses });
+    const incomes = await recentIncomes(householdId, addDays(today, -31), today);
+    return familyBudgets({ today, meId, members, paySettings, fixedCosts, expenses, incomes });
   }, [householdId, meId, today]);
 }
 
@@ -77,7 +92,7 @@ export function useHouseholdOverview(householdId: string, meId: string): Househo
       .anyOf(month.filter((e) => e.source === "receipt").map((e) => e.id))
       .toArray();
     return {
-      budgets: familyBudgets({ today, meId, members, paySettings, fixedCosts, expenses }),
+      budgets: familyBudgets({ today, meId, members, paySettings, fixedCosts, expenses, incomes: await recentIncomes(householdId, from, today) }),
       monthStart,
       monthSpentMinor: month.reduce((sum, e) => sum + e.amountMinor, 0),
       monthByCategory: categoryTotals(month, receiptItems),
@@ -106,6 +121,7 @@ export function useMemberDetail(householdId: string, meId: string, memberId: str
     const expenses = (await db.expenses.where("memberId").equals(memberId).toArray())
       .filter((e) => e.deletedAt === null)
       .sort((a, b) => b.spentOn.localeCompare(a.spentOn) || b.createdAt.localeCompare(a.createdAt));
+    const incomes = (await db.incomes.where("memberId").equals(memberId).toArray()).filter((i) => i.deletedAt === null);
     const [entry] = familyBudgets({
       today,
       meId,
@@ -113,6 +129,7 @@ export function useMemberDetail(householdId: string, meId: string, memberId: str
       paySettings: settings ? [settings] : [],
       fixedCosts,
       expenses,
+      incomes,
     });
     const from = entry.budget?.start ?? `${today.slice(0, 8)}01`;
     const inPeriod = expenses.filter((e) => e.spentOn >= from && e.spentOn <= today);
@@ -127,4 +144,15 @@ export function useMemberDetail(householdId: string, meId: string, memberId: str
       expenseCount: expenses.length,
     };
   }, [householdId, meId, memberId, today]);
+}
+
+/** The member's live expenses between two dates, for charts. */
+export function usePeriodExpenses(memberId: string, from: string, to: string): Expense[] | undefined {
+  return useLiveQuery(
+    async () =>
+      (await localDb().expenses.where("memberId").equals(memberId).toArray()).filter(
+        (e) => e.deletedAt === null && e.spentOn >= from && e.spentOn <= to,
+      ),
+    [memberId, from, to],
+  );
 }

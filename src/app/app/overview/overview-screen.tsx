@@ -70,8 +70,8 @@ function Overview({ household, me }: { household: Household; me: Member }) {
 
       <section
         aria-label="The whole family"
-        className={`rounded-[2rem] p-6 text-white shadow-[0_24px_60px_-24px_rgba(13,148,136,0.65)] lg:p-8 ${
-          overspent ? "bg-gradient-to-br from-red-500 via-red-600 to-red-800" : "bg-gradient-to-br from-teal-500 via-teal-700 to-teal-900"
+        className={`rounded-[2rem] p-6 text-white shadow-[0_28px_60px_-24px_rgba(79,70,229,0.55)] lg:p-8 ${
+          overspent ? "bg-gradient-to-br from-red-500 via-red-600 to-red-800" : "bg-gradient-to-br from-teal-400 via-cyan-600 to-indigo-600"
         }`}
       >
         <p className="text-sm font-medium text-white/85">{overspent ? "The family is over budget by" : "Left for the whole family"}</p>

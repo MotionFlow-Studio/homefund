@@ -1,34 +1,48 @@
 @import "tailwindcss";
 
+/* Light is the default; Settings can switch to dark or follow the system (see the script in layout.tsx). */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
 :root {
-  --background: #f3f6f5;
-  --foreground: #14201e;
+  --background: #f5f7fc;
+  --foreground: #101828;
+  --mesh:
+    radial-gradient(1100px 620px at -5% -10%, rgb(45 212 191 / 0.22), transparent 60%),
+    radial-gradient(900px 600px at 105% -5%, rgb(129 140 248 / 0.2), transparent 60%),
+    radial-gradient(900px 700px at 90% 110%, rgb(244 114 182 / 0.13), transparent 60%),
+    radial-gradient(800px 600px at -5% 105%, rgb(251 191 36 / 0.14), transparent 60%);
+}
+
+:root[data-theme="dark"] {
+  --background: #0a0f24;
+  --foreground: #eef2ff;
+  --mesh:
+    radial-gradient(1100px 620px at -5% -10%, rgb(20 184 166 / 0.25), transparent 60%),
+    radial-gradient(900px 600px at 105% -5%, rgb(99 102 241 / 0.32), transparent 60%),
+    radial-gradient(900px 700px at 90% 110%, rgb(217 70 239 / 0.18), transparent 60%),
+    radial-gradient(800px 600px at -5% 105%, rgb(245 158 11 / 0.12), transparent 60%);
+  color-scheme: dark;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --color-brand: #0f766e;
-  --color-brand-strong: #115e59;
+  --color-brand: #0d9488;
+  --color-brand-strong: #0f766e;
   --color-accent: #fbbf24;
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #050d0c;
-    --foreground: #eef4f3;
-  }
-
-  /* The brand green is too dark to read as text on black; a lighter teal is. */
-  .text-brand {
-    color: #2dd4bf;
-  }
+/* The brand teal is too dark to read as text on the dark background; a lighter one is. */
+[data-theme="dark"] .text-brand {
+  color: #2dd4bf;
 }
 
 body {
-  background: var(--background);
+  background-color: var(--background);
+  background-image: var(--mesh);
+  background-attachment: fixed;
   color: var(--foreground);
   font-family: var(--font-sans), system-ui, sans-serif;
 }
@@ -36,18 +50,19 @@ body {
 /* A surface for grouped content: white on the light background, glass on the dark one. */
 .card {
   border-radius: 1.5rem;
-  background: #ffffff;
+  background: rgb(255 255 255 / 0.82);
+  backdrop-filter: blur(18px);
   box-shadow:
-    0 1px 2px rgb(16 40 36 / 0.04),
-    0 8px 24px -12px rgb(16 40 36 / 0.12),
-    0 0 0 1px rgb(16 40 36 / 0.06);
+    0 1px 2px rgb(16 24 40 / 0.04),
+    0 12px 32px -16px rgb(30 41 99 / 0.18),
+    0 0 0 1px rgb(16 24 40 / 0.05);
 }
 
-@media (prefers-color-scheme: dark) {
-  .card {
-    background: rgb(255 255 255 / 0.035);
-    box-shadow: 0 0 0 1px rgb(255 255 255 / 0.08);
-  }
+[data-theme="dark"] .card {
+  background: rgb(255 255 255 / 0.05);
+  box-shadow:
+    0 0 0 1px rgb(255 255 255 / 0.09),
+    0 20px 40px -24px rgb(0 0 0 / 0.6);
 }
 
 /* The line that sweeps over a receipt while it is being read. */

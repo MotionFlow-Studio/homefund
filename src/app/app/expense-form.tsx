@@ -19,9 +19,11 @@ type Props = {
   onClose: () => void;
   onSaved: (expense: Expense) => void;
   onDelete?: (expense: Expense) => void;
+  /** Shown when adding: switches the form to recording money received. */
+  onSwitchToIncome?: () => void;
 };
 
-export function ExpenseForm({ household, me, members = [], expense, onClose, onSaved, onDelete }: Props) {
+export function ExpenseForm({ household, me, members = [], expense, onClose, onSaved, onDelete, onSwitchToIncome }: Props) {
   const today = localToday();
   const yesterday = addDays(today, -1);
   const [amount, setAmount] = useState(() => (expense ? formatAmountInput(expense.amountMinor, household.currency) : ""));
@@ -135,6 +137,8 @@ export function ExpenseForm({ household, me, members = [], expense, onClose, onS
             </button>
           ) : null}
         </header>
+
+        {onSwitchToIncome ? <KindSwitch kind="expense" onSwitch={onSwitchToIncome} /> : null}
 
         <label className="flex flex-col items-center gap-2 py-2">
           <span className="text-sm opacity-70">Amount</span>
@@ -257,6 +261,33 @@ export function ExpenseForm({ household, me, members = [], expense, onClose, onS
           </Button>
         </div>
       </form>
+    </div>
+  );
+}
+
+/** "Money out / Money in" switch at the top of the add forms. */
+export function KindSwitch({ kind, onSwitch }: { kind: "expense" | "income"; onSwitch: () => void }) {
+  const option = (value: "expense" | "income", label: string) => (
+    <button
+      type="button"
+      role="tab"
+      aria-selected={kind === value}
+      onClick={() => kind !== value && onSwitch()}
+      className={`h-10 flex-1 rounded-xl text-sm font-semibold transition ${
+        kind === value
+          ? value === "expense"
+            ? "bg-white text-neutral-900 shadow-sm dark:bg-white/15 dark:text-white"
+            : "bg-emerald-500 text-white shadow-sm"
+          : "text-black/55 hover:text-black dark:text-white/55 dark:hover:text-white"
+      }`}
+    >
+      {label}
+    </button>
+  );
+  return (
+    <div role="tablist" aria-label="Type" className="flex gap-1 rounded-2xl bg-black/[0.05] p-1 dark:bg-white/[0.06]">
+      {option("expense", "Money out")}
+      {option("income", "Money in")}
     </div>
   );
 }

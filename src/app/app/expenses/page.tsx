@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { ExpensesScreen } from "./expenses-screen";
 
 export const metadata: Metadata = {
-  title: "Expenses",
+  title: "Transactions",
   robots: { index: false, follow: false },
 };
 

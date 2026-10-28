@@ -93,11 +93,15 @@ export type BudgetInput = {
   savingsGoalMinor: number;
   /** Expenses of the member; only those inside the current pay period count. */
   expenses: { amountMinor: number; spentOn: IsoDate }[];
+  /** Money received on top of the pay (bonus, refund...); those inside the period add to it. */
+  incomes?: { amountMinor: number; receivedOn: IsoDate }[];
 };
 
 export type Budget = PayPeriod & {
-  /** Income minus fixed costs and savings: what can be spent in the whole period. */
+  /** Income and extra income minus fixed costs and savings: what can be spent in the whole period. */
   availableMinor: number;
+  /** Extra income received in this period, already part of availableMinor. */
+  extraIncomeMinor: number;
   /** Spent so far in this period. */
   spentMinor: number;
   /** Left until the next payday. Negative when overspent. */
@@ -110,7 +114,10 @@ export type Budget = PayPeriod & {
 export function computeBudget(input: BudgetInput): Budget {
   const period = payPeriod(input.today, input.paydayDay);
   const fixed = input.fixedCostsMinor.reduce((sum, v) => sum + v, 0);
-  const availableMinor = input.incomeMinor - fixed - input.savingsGoalMinor;
+  const extraIncomeMinor = (input.incomes ?? [])
+    .filter((i) => i.receivedOn >= period.start && i.receivedOn <= period.end)
+    .reduce((sum, i) => sum + i.amountMinor, 0);
+  const availableMinor = input.incomeMinor + extraIncomeMinor - fixed - input.savingsGoalMinor;
   const spentMinor = input.expenses
     .filter((e) => e.spentOn >= period.start && e.spentOn <= period.end)
     .reduce((sum, e) => sum + e.amountMinor, 0);
@@ -119,6 +126,7 @@ export function computeBudget(input: BudgetInput): Budget {
   return {
     ...period,
     availableMinor,
+    extraIncomeMinor,
     spentMinor,
     leftMinor,
     perDayMinor: leftMinor > 0 ? Math.floor(leftMinor / period.daysLeft) : 0,

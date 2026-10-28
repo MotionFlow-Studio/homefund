@@ -1,18 +1,22 @@
 "use client";
 
-import { CalendarDays, Camera, ChartPie, Plus, Receipt } from "lucide-react";
+import { BarChart3, CalendarDays, Camera, ChartPie, Plus, Receipt, TrendingUp } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { CategoryBadge } from "@/components/category-badge";
 import { Money } from "@/components/money";
 import { addDays, localToday } from "@/lib/budget";
 import { getCategory } from "@/lib/categories";
-import { removeExpense, useHouseholdExpenses, useHouseholdMembers } from "@/lib/expenses";
+import { removeExpense, useHouseholdExpenses, useHouseholdIncomes, useHouseholdMembers } from "@/lib/expenses";
+import { getIncomeSource } from "@/lib/income-sources";
 import { formatMoney } from "@/lib/money";
 import type { Expense, FixedCost, Household, Member, PaySettings } from "@/lib/model";
-import { useBudget, useMemberDetail } from "@/lib/use-budget";
+import { useBudget, useMemberDetail, usePeriodExpenses } from "@/lib/use-budget";
+import { dailySpending, forecast } from "@/lib/forecast";
+import { DailyBars, Donut, PaceChart, useCountUp } from "@/components/charts";
 import { initials } from "./app-shell";
 import { ExpenseForm } from "./expense-form";
+import { IncomeForm } from "./income-form";
 import { FamilyBudgets } from "./family-budgets";
 import { EmptyState, HomeSkeleton } from "@/components/loading";
 
@@ -61,9 +65,19 @@ function dayLabel(date: string, today: string) {
 
 export function Dashboard({ household, me, settings, fixedCosts }: Props) {
   const budget = useBudget(me.id, settings, fixedCosts);
+  const today0 = localToday();
+  const periodExpenses = usePeriodExpenses(me.id, addDays(today0, -40), today0);
+  const shownLeft = useCountUp(budget ? Math.abs(budget.leftMinor) : 0);
   const detail = useMemberDetail(household.id, me.id, me.id);
-  const [adding, setAdding] = useState(false);
-  const recent = (useHouseholdExpenses(household.id) ?? []).slice(0, 6);
+  const [adding, setAdding] = useState<"expense" | "income" | null>(null);
+  const expensesLive = useHouseholdExpenses(household.id);
+  const incomesLive = useHouseholdIncomes(household.id);
+  const recent = [
+    ...(expensesLive ?? []).slice(0, 8).map((e) => ({ kind: "expense" as const, date: e.spentOn, createdAt: e.createdAt, e })),
+    ...(incomesLive ?? []).slice(0, 8).map((i) => ({ kind: "income" as const, date: i.receivedOn, createdAt: i.createdAt, i })),
+  ]
+    .sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt))
+    .slice(0, 7);
   // The "Saved" note with its undo, and when it goes away. The deadline is kept
   // with it so the note does not come back when the user returns to this screen.
   const [saved, setSaved] = useState<{ expense: Expense; until: number } | null>(null);
@@ -87,19 +101,34 @@ export function Dashboard({ household, me, settings, fixedCosts }: Props) {
   const spentShare =
     budget.availableMinor > 0 ? Math.min(100, (budget.spentMinor / budget.availableMinor) * 100) : 100;
   const byCategory = detail?.byCategory ?? [];
-  const largest = byCategory[0]?.amountMinor ?? 0;
+  const fc = forecast(budget, periodExpenses ?? [], today);
+  const lastTwoWeeks = dailySpending(periodExpenses ?? [], addDays(today, -13), today);
   const dateLine = new Date(`${today}T12:00:00`).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" });
 
-  if (adding) {
+  if (adding === "expense") {
     return (
       <ExpenseForm
         household={household}
         me={me}
-        onClose={() => setAdding(false)}
+        members={members}
+        onClose={() => setAdding(null)}
         onSaved={(expense) => {
-          setAdding(false);
+          setAdding(null);
           setSaved({ expense, until: Date.now() + 6000 });
         }}
+        onSwitchToIncome={() => setAdding("income")}
+      />
+    );
+  }
+  if (adding === "income") {
+    return (
+      <IncomeForm
+        household={household}
+        me={me}
+        members={members}
+        onClose={() => setAdding(null)}
+        onSaved={() => setAdding(null)}
+        onSwitchToExpense={() => setAdding("expense")}
       />
     );
   }
@@ -108,13 +137,13 @@ export function Dashboard({ household, me, settings, fixedCosts }: Props) {
     <>
       <Link
         href="/app/scan"
-        className="flex h-12 items-center justify-center gap-2 rounded-2xl bg-gradient-to-b from-teal-500 to-teal-700 px-5 font-semibold text-white shadow-[0_8px_24px_-8px_rgba(13,148,136,0.7)] transition hover:brightness-110 active:scale-[0.98]"
+        className="flex h-12 items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-teal-500 to-indigo-500 px-5 font-semibold text-white shadow-[0_8px_24px_-8px_rgba(13,148,136,0.7)] transition hover:brightness-110 active:scale-[0.98]"
       >
         <Camera size={20} aria-hidden /> Scan receipt
       </Link>
       <button
         type="button"
-        onClick={() => setAdding(true)}
+        onClick={() => setAdding("expense")}
         className="flex h-12 items-center justify-center gap-2 rounded-2xl bg-neutral-900 px-5 font-semibold text-white shadow-sm transition hover:bg-neutral-800 active:scale-[0.98] dark:bg-white dark:text-neutral-900 dark:hover:bg-teal-50"
       >
         <Plus size={20} aria-hidden /> Add expense
@@ -148,10 +177,10 @@ export function Dashboard({ household, me, settings, fixedCosts }: Props) {
       <div className="grid gap-5 lg:grid-cols-12 lg:gap-6">
         <section
           aria-label="Your budget"
-          className={`relative overflow-hidden rounded-[2rem] p-6 text-white shadow-[0_24px_60px_-24px_rgba(13,148,136,0.65)] [container-type:inline-size] lg:col-span-7 lg:p-8 ${
+          className={`relative overflow-hidden rounded-[2rem] p-6 text-white shadow-[0_28px_60px_-24px_rgba(79,70,229,0.55)] [container-type:inline-size] lg:col-span-7 lg:p-8 ${
             budget.overspent
               ? "bg-gradient-to-br from-red-500 via-red-600 to-red-800 shadow-red-600/30"
-              : "bg-gradient-to-br from-teal-500 via-teal-700 to-teal-900"
+              : "bg-gradient-to-br from-teal-400 via-cyan-600 to-indigo-600"
           }`}
         >
           <div aria-hidden className="pointer-events-none absolute -top-24 -right-16 size-64 rounded-full bg-white/10 blur-sm" />
@@ -163,7 +192,7 @@ export function Dashboard({ household, me, settings, fixedCosts }: Props) {
             className="relative mt-1 whitespace-nowrap font-bold leading-none tracking-tight"
             style={{ fontSize: fitSize(digits(money(Math.abs(budget.leftMinor))), 4.5) }}
           >
-            <Money minor={Math.abs(budget.leftMinor)} currency={currency} />
+            <Money minor={shownLeft} currency={currency} />
           </p>
 
           <div className="relative mt-6">
@@ -181,6 +210,11 @@ export function Dashboard({ household, me, settings, fixedCosts }: Props) {
               {budget.availableMinor > 0
                 ? `${money(budget.spentMinor)} spent of ${money(budget.availableMinor)}`
                 : `${money(budget.spentMinor)} spent`}
+              {budget.extraIncomeMinor > 0 ? (
+                <span className="ml-2 inline-flex items-center rounded-full bg-white/20 px-2 py-0.5 text-xs font-semibold">
+                  +{money(budget.extraIncomeMinor)} extra income
+                </span>
+              ) : null}
             </p>
           </div>
 
@@ -215,42 +249,93 @@ export function Dashboard({ household, me, settings, fixedCosts }: Props) {
 
         <div className="grid grid-cols-2 gap-3 lg:hidden">{actions}</div>
 
+        <section aria-labelledby="forecast-title" className="card flex flex-col p-6 lg:col-span-5">
+          <div className="flex items-center justify-between gap-3">
+            <h2 id="forecast-title" className="flex items-center gap-2 font-semibold">
+              <TrendingUp size={18} className="text-teal-500" aria-hidden /> Payday forecast
+            </h2>
+            <span className="rounded-full bg-black/[0.05] px-2.5 py-1 text-xs font-medium dark:bg-white/10">
+              day {fc.daysElapsed} of {fc.periodDays}
+            </span>
+          </div>
+          {fc.runsOutOn ? (
+            <p className="mt-3 text-lg leading-snug font-semibold text-rose-600 dark:text-rose-400">
+              At this pace your money runs out on {paydayLabel(fc.runsOutOn)}.
+            </p>
+          ) : (
+            <p className="mt-3 text-lg leading-snug font-semibold">
+              At this pace you&apos;ll have{" "}
+              <span className="text-emerald-600 dark:text-emerald-400">{money(Math.max(0, fc.projectedLeftMinor))}</span> left on payday.
+            </p>
+          )}
+          <p className="mt-1 text-sm opacity-60">
+            You spend about {money(fc.averagePerDayMinor)} a day
+            {fc.aheadOfPaceMinor > 0 ? `, ${money(fc.aheadOfPaceMinor)} ahead of an even pace.` : `, ${money(-fc.aheadOfPaceMinor)} under an even pace.`}
+          </p>
+          <div className="mt-auto pt-4 text-black/70 dark:text-white/70">
+            <PaceChart
+              cumulative={fc.cumulative}
+              even={fc.even}
+              projectedEnd={fc.projectedSpentMinor}
+              budget={Math.max(0, budget.availableMinor)}
+              over={fc.runsOutOn !== null}
+            />
+            <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs opacity-70">
+              <span className="flex items-center gap-1.5"><span className={`h-0.5 w-4 rounded ${fc.runsOutOn ? "bg-rose-500" : "bg-teal-500"}`} aria-hidden /> Spent so far</span>
+              <span className="flex items-center gap-1.5"><span className={`h-0.5 w-4 rounded border-t-2 border-dashed ${fc.runsOutOn ? "border-rose-500" : "border-teal-500"}`} aria-hidden /> Your pace</span>
+              <span className="flex items-center gap-1.5"><span className="h-0.5 w-4 rounded bg-current opacity-40" aria-hidden /> Even pace</span>
+            </div>
+          </div>
+        </section>
+
+        <section aria-labelledby="daily-title" className="card p-6 lg:col-span-7">
+          <div className="flex items-baseline justify-between gap-3">
+            <h2 id="daily-title" className="flex items-center gap-2 font-semibold">
+              <BarChart3 size={18} className="text-cyan-500" aria-hidden /> Last 14 days
+            </h2>
+            <span className="text-sm opacity-60">dashed line: even daily amount</span>
+          </div>
+          <div className="mt-5 text-black/70 dark:text-white/70">
+            <DailyBars
+              days={lastTwoWeeks}
+              allowance={Math.max(0, Math.round(budget.availableMinor / fc.periodDays))}
+              labels={(d) => (d ? dayLabel(d, today) : "")}
+              money={money}
+            />
+          </div>
+        </section>
+
         <section aria-labelledby="categories-title" className="card flex flex-col p-6 lg:col-span-5">
           <div className="flex items-baseline justify-between gap-3">
-            <h2 id="categories-title" className="font-semibold">
-              Where your money went
+            <h2 id="categories-title" className="flex items-center gap-2 font-semibold">
+              <ChartPie size={18} className="text-violet-500" aria-hidden /> Where your money went
             </h2>
-            <span className="text-sm tabular-nums opacity-60">since payday</span>
+            <span className="text-sm opacity-60">since payday</span>
           </div>
           {byCategory.length === 0 ? (
             <EmptyState compact icon={<ChartPie size={20} />}>
               Your spending by category shows up here as you add expenses.
             </EmptyState>
           ) : (
-            <ul className="mt-5 flex flex-col gap-3.5">
-              {byCategory.slice(0, 6).map(({ category, amountMinor }) => {
-                const { label, color } = getCategory(category);
-                return (
-                  <li key={category} className="flex items-center gap-3">
-                    <span aria-hidden>
-                      <CategoryBadge category={category} showLabel={false} size="sm" />
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-baseline justify-between gap-2 text-sm">
-                        <span className="truncate font-medium">{label}</span>
-                        <span className="font-semibold tabular-nums">{money(amountMinor)}</span>
-                      </div>
-                      <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-black/[0.06] dark:bg-white/10">
-                        <div
-                          className="h-full rounded-full"
-                          style={{ width: `${largest ? (amountMinor / largest) * 100 : 0}%`, backgroundColor: color }}
-                        />
-                      </div>
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
+            <div className="mt-4 flex items-center gap-5">
+              <Donut
+                parts={byCategory.map((c) => ({ color: getCategory(c.category).color, value: c.amountMinor, label: c.category }))}
+                center={money(byCategory.reduce((sum, c) => sum + c.amountMinor, 0))}
+                caption="spent"
+              />
+              <ul className="flex min-w-0 flex-1 flex-col gap-2 text-sm">
+                {byCategory.slice(0, 5).map(({ category, amountMinor }) => {
+                  const { label, color } = getCategory(category);
+                  return (
+                    <li key={category} className="flex items-center gap-2">
+                      <span className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: color }} aria-hidden />
+                      <span className="min-w-0 flex-1 truncate">{label}</span>
+                      <span className="font-semibold tabular-nums">{money(amountMinor)}</span>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
           )}
         </section>
 
@@ -282,7 +367,7 @@ export function Dashboard({ household, me, settings, fixedCosts }: Props) {
 
         <section aria-label="Recent expenses" className="card p-6 lg:col-span-5 lg:row-span-2">
           <div className="flex items-baseline justify-between">
-            <h2 className="font-semibold">Recent expenses</h2>
+            <h2 className="font-semibold">Recent activity</h2>
             <Link href="/app/expenses" className="text-sm font-semibold text-brand">
               See all
             </Link>
@@ -293,7 +378,28 @@ export function Dashboard({ household, me, settings, fixedCosts }: Props) {
             </EmptyState>
           ) : (
             <ul className="mt-3 flex flex-col">
-              {recent.map((e) => {
+              {recent.map((entry) => {
+                if (entry.kind === "income") {
+                  const src = getIncomeSource(entry.i.source);
+                  const Icon = src.icon;
+                  const payer = memberById.get(entry.i.memberId);
+                  return (
+                    <li key={`i-${entry.i.id}`} className="flex items-center gap-3 py-2.5">
+                      <span className="flex size-10 shrink-0 items-center justify-center rounded-full" style={{ backgroundColor: `${src.color}1f`, color: src.color }} aria-hidden>
+                        <Icon size={20} strokeWidth={2.25} />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate font-medium">{entry.i.note || src.label}</span>
+                        <span className="flex items-center gap-1.5 overflow-hidden text-xs whitespace-nowrap opacity-60">
+                          {dayLabel(entry.date, today)} · Income
+                          {payer && members.length > 1 ? ` · ${payer.id === me.id ? "You" : payer.name.split(" ")[0]}` : ""}
+                        </span>
+                      </span>
+                      <span className="shrink-0 font-semibold text-emerald-600 tabular-nums dark:text-emerald-400">+{money(entry.i.amountMinor)}</span>
+                    </li>
+                  );
+                }
+                const e = entry.e;
                 const payer = memberById.get(e.memberId);
                 return (
                   <li key={e.id} className="flex items-center gap-3 py-2.5">
@@ -319,7 +425,7 @@ export function Dashboard({ household, me, settings, fixedCosts }: Props) {
                         ) : null}
                       </span>
                     </span>
-                    <span className="shrink-0 font-semibold tabular-nums">{money(e.amountMinor)}</span>
+                    <span className="shrink-0 font-semibold tabular-nums">−{money(e.amountMinor)}</span>
                   </li>
                 );
               })}

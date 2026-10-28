@@ -3,6 +3,7 @@ import type {
   Expense,
   FixedCost,
   Household,
+  Income,
   Member,
   PaySettings,
   ReceiptItem,
@@ -16,6 +17,7 @@ export const SYNCED_TABLES = [
   "fixedCosts",
   "expenses",
   "receiptItems",
+  "incomes",
 ] as const;
 
 export type SyncedTable = (typeof SYNCED_TABLES)[number];
@@ -27,6 +29,7 @@ export type SyncedRecord = {
   fixedCosts: FixedCost;
   expenses: Expense;
   receiptItems: ReceiptItem;
+  incomes: Income;
 };
 
 /** A local change waiting to be sent to the server. One entry per record. */
@@ -46,6 +49,7 @@ export class HomeFundDb extends Dexie {
   fixedCosts!: EntityTable<FixedCost, "id">;
   expenses!: EntityTable<Expense, "id">;
   receiptItems!: EntityTable<ReceiptItem, "id">;
+  incomes!: EntityTable<Income, "id">;
   outbox!: EntityTable<OutboxEntry, "key">;
   meta!: EntityTable<MetaEntry, "key">;
 
@@ -60,6 +64,9 @@ export class HomeFundDb extends Dexie {
       receiptItems: "id, expenseId, updatedAt",
       outbox: "key, table, queuedAt",
       meta: "key",
+    });
+    this.version(2).stores({
+      incomes: "id, householdId, memberId, receivedOn, [householdId+receivedOn], updatedAt",
     });
   }
 }

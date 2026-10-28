@@ -102,7 +102,7 @@ categories, in 6–8 seconds each.
   - the login account and all its sessions; every signed-in device clears
     what HomeFund kept on it;
   - a household nobody else uses, with everything in it;
-  - in a shared household, the person's expenses, receipt lines, budget and
+  - in a shared household, the person's expenses, incomes, receipt lines, budget and
     fixed costs. The others keep the household; their phones drop these
     records on the next sync, and on the server only an empty marker of each
     remains (no names, notes or amounts) so that they can. If the person set

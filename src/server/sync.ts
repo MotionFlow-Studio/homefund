@@ -6,6 +6,7 @@ import {
   expenses,
   fixedCosts,
   households,
+  incomes,
   members,
   paySettings,
   receiptItems,
@@ -15,6 +16,7 @@ import {
   expenseSchema,
   fixedCostSchema,
   householdSchema,
+  incomeSchema,
   memberSchema,
   paySettingsSchema,
   receiptItemSchema,
@@ -198,6 +200,15 @@ async function push(userId: string, changes: ChangeSet): Promise<number> {
       applied++;
     }
 
+    for (const income of valid(incomeSchema, changes.incomes)) {
+      if (!allowed.has(income.householdId)) continue;
+      if ((await memberHousehold(income.memberId, income)) !== income.householdId) continue;
+      const [existing] = await tx.select({ householdId: incomes.householdId }).from(incomes).where(eq(incomes.id, income.id));
+      if (existing && existing.householdId !== income.householdId) continue;
+      await upsertLatest(tx, incomes, "id", income);
+      applied++;
+    }
+
     for (const item of valid(receiptItemSchema, changes.receiptItems)) {
       const [expense] = await tx.select({ householdId: expenses.householdId }).from(expenses).where(eq(expenses.id, item.expenseId));
       if (!expense || !allowed.has(expense.householdId)) continue;
@@ -238,11 +249,12 @@ async function pullSnapshot(tx: Tx, userId: string, cursor: number): Promise<Syn
   const f = await tx.select().from(fixedCosts).where(and(inArray(fixedCosts.memberId, memberIds), since(fixedCosts.serverSeq))).orderBy(fixedCosts.serverSeq).limit(PULL_LIMIT);
   const e = await tx.select().from(expenses).where(and(inArray(expenses.householdId, allowed), since(expenses.serverSeq))).orderBy(expenses.serverSeq).limit(PULL_LIMIT);
   const r = await tx.select().from(receiptItems).where(and(inArray(receiptItems.expenseId, expenseIds), since(receiptItems.serverSeq))).orderBy(receiptItems.serverSeq).limit(PULL_LIMIT);
+  const i = await tx.select().from(incomes).where(and(inArray(incomes.householdId, allowed), since(incomes.serverSeq))).orderBy(incomes.serverSeq).limit(PULL_LIMIT);
 
   // A table that hit the limit may have more rows after its last one. The new
   // cursor must not pass that row, or the rest would never be sent; rows of
   // other tables above it simply come again next time (merging is idempotent).
-  const tables = [h, m, p, f, e, r] as { serverSeq: number }[][];
+  const tables = [h, m, p, f, e, r, i] as { serverSeq: number }[][];
   const cut = tables.filter((rows) => rows.length >= PULL_LIMIT).map((rows) => rows[rows.length - 1].serverSeq);
   const highest = tables.flat().reduce((max, row) => Math.max(max, row.serverSeq), cursor);
   const nextCursor = cut.length > 0 ? Math.min(...cut) : highest;
@@ -257,6 +269,7 @@ async function pullSnapshot(tx: Tx, userId: string, cursor: number): Promise<Syn
       fixedCosts: f.map(toRecord),
       expenses: e.map(toRecord),
       receiptItems: r.map(toRecord),
+      incomes: i.map(toRecord),
     } as ChangeSet,
   };
 }

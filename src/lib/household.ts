@@ -108,6 +108,11 @@ export async function changeHouseholdCurrency(household: Household, currency: st
       await saveRecord("expenses", { ...expense, amountMinor: Math.max(1, rescale(expense.amountMinor)) });
       rewritten++;
     }
+    for (const income of await db.incomes.where("householdId").equals(household.id).toArray()) {
+      if (income.deletedAt !== null) continue;
+      await saveRecord("incomes", { ...income, amountMinor: Math.max(1, rescale(income.amountMinor)) });
+      rewritten++;
+    }
     for (const item of await db.receiptItems.where("expenseId").anyOf(expenses.map((e) => e.id)).toArray()) {
       if (item.deletedAt !== null) continue;
       await saveRecord("receiptItems", { ...item, lineTotalMinor: rescale(item.lineTotalMinor) });

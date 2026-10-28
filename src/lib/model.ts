@@ -13,6 +13,8 @@ export const MEMBER_COLORS = ["#0f766e", "#2563eb", "#db2777", "#ea580c", "#7c3a
 
 export const MEMBER_ROLES = ["owner", "adult", "child"] as const;
 export const EXPENSE_SOURCES = ["manual", "receipt", "voice"] as const;
+/** Where money that is not the regular pay came from. */
+export const INCOME_SOURCES = ["bonus", "side_job", "refund", "gift", "sale", "benefit", "other"] as const;
 
 /** Largest amount accepted anywhere, in the smallest unit. */
 const MAX_MINOR = Number.MAX_SAFE_INTEGER;
@@ -79,6 +81,19 @@ export const expenseSchema = z.object({
   ...syncFields,
 });
 
+/** Money received on top of the regular pay: it adds to what can be spent in the pay period. */
+export const incomeSchema = z.object({
+  id: uuid,
+  householdId: uuid,
+  memberId: uuid,
+  amountMinor: minorAmount.min(1),
+  source: z.enum(INCOME_SOURCES),
+  receivedOn: isoDate,
+  note: optionalText(280),
+  createdByUserId: uuid.nullable(),
+  ...syncFields,
+});
+
 export const receiptItemSchema = z.object({
   id: uuid,
   expenseId: uuid,
@@ -102,3 +117,5 @@ export type FixedCost = z.infer<typeof fixedCostSchema>;
 export type Expense = z.infer<typeof expenseSchema>;
 export type ExpenseSource = Expense["source"];
 export type ReceiptItem = z.infer<typeof receiptItemSchema>;
+export type Income = z.infer<typeof incomeSchema>;
+export type IncomeSource = Income["source"];

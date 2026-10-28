@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, ChevronRight, LogOut, Trash2 } from "lucide-react";
+import { ArrowLeft, ChevronRight, LogOut, Monitor, Moon, Sun, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
@@ -114,6 +114,10 @@ function Settings({ user, household, me }: { user: CurrentUser; household: House
           </span>
           <ChevronRight size={20} aria-hidden className="opacity-50" />
         </button>
+      </Section>
+
+      <Section title="Appearance">
+        <ThemePicker />
       </Section>
 
       <Section title="Household">
@@ -397,5 +401,63 @@ function DeleteData({ household, me }: { household: Household; me: Member }) {
         </Button>
       </div>
     </section>
+  );
+}
+
+type Theme = "light" | "dark" | "system";
+
+function readTheme(): Theme {
+  try {
+    const value = localStorage.getItem("hf-theme");
+    return value === "dark" || value === "system" ? value : "light";
+  } catch {
+    return "light";
+  }
+}
+
+function applyTheme(theme: Theme) {
+  const dark = theme === "dark" || (theme === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+  document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
+}
+
+/** Light, dark or the phone's own setting; stored on this device only. */
+function ThemePicker() {
+  const [theme, setTheme] = useState<Theme>(readTheme);
+
+  function choose(next: Theme) {
+    setTheme(next);
+    try {
+      localStorage.setItem("hf-theme", next);
+    } catch {
+      // Private mode: the choice lasts for this visit.
+    }
+    applyTheme(next);
+  }
+
+  const options: [Theme, string, typeof Sun][] = [
+    ["light", "Light", Sun],
+    ["dark", "Dark", Moon],
+    ["system", "Auto", Monitor],
+  ];
+  return (
+    <div role="radiogroup" aria-label="Theme" className="grid grid-cols-3 gap-2">
+      {options.map(([value, label, Icon]) => (
+        <button
+          key={value}
+          type="button"
+          role="radio"
+          aria-checked={theme === value}
+          onClick={() => choose(value)}
+          className={`flex flex-col items-center gap-2 rounded-2xl border p-3 text-sm font-semibold transition ${
+            theme === value
+              ? "border-transparent bg-gradient-to-br from-teal-500 to-indigo-500 text-white shadow-md shadow-indigo-500/25"
+              : "border-black/10 hover:bg-black/[0.03] dark:border-white/10 dark:hover:bg-white/5"
+          }`}
+        >
+          <Icon size={20} aria-hidden />
+          {label}
+        </button>
+      ))}
+    </div>
   );
 }

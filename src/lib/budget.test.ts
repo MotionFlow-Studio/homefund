@@ -129,3 +129,23 @@ describe("localToday", () => {
     expect(localToday(new Date(2026, 9, 27, 23, 59))).toBe("2026-10-27");
   });
 });
+
+describe("extra income", () => {
+  it("adds money received in the pay period to what can be spent", () => {
+    const budget = computeBudget({
+      today: "2026-10-20",
+      paydayDay: 10,
+      incomeMinor: 300_000,
+      fixedCostsMinor: [100_000],
+      savingsGoalMinor: 0,
+      expenses: [{ amountMinor: 50_000, spentOn: "2026-10-15" }],
+      incomes: [
+        { amountMinor: 40_000, receivedOn: "2026-10-18" },
+        { amountMinor: 99_999, receivedOn: "2026-10-05" },
+      ],
+    });
+    expect(budget.extraIncomeMinor).toBe(40_000);
+    expect(budget.availableMinor).toBe(240_000);
+    expect(budget.leftMinor).toBe(190_000);
+  });
+});

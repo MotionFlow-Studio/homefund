@@ -15,7 +15,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { authUsers } from "drizzle-orm/supabase";
 import { CATEGORY_IDS } from "@/lib/categories";
-import { EXPENSE_SOURCES, MEMBER_ROLES } from "@/lib/model";
+import { EXPENSE_SOURCES, INCOME_SOURCES, MEMBER_ROLES } from "@/lib/model";
 
 /*
  * Conventions
@@ -47,6 +47,7 @@ const syncColumns = {
 export const memberRole = pgEnum("member_role", MEMBER_ROLES);
 export const expenseSource = pgEnum("expense_source", EXPENSE_SOURCES);
 export const category = pgEnum("category", CATEGORY_IDS);
+export const incomeSource = pgEnum("income_source", INCOME_SOURCES);
 
 export const households = pgTable(
   "households",
@@ -139,6 +140,32 @@ export const expenses = pgTable(
   (t) => [
     index("expenses_household_spent_idx").on(t.householdId, t.spentOn),
     index("expenses_household_seq_idx").on(t.householdId, t.serverSeq),
+  ],
+).enableRLS();
+
+/** Money received on top of the regular pay (bonus, refund, side job...). */
+export const incomes = pgTable(
+  "incomes",
+  {
+    id: uuid("id").primaryKey(),
+    householdId: uuid("household_id")
+      .notNull()
+      .references(() => households.id),
+    memberId: uuid("member_id")
+      .notNull()
+      .references(() => members.id),
+    amountMinor: money("amount_minor").notNull(),
+    source: incomeSource("source").notNull(),
+    receivedOn: date("received_on", { mode: "string" }).notNull(),
+    note: varchar("note", { length: 280 }),
+    createdByUserId: uuid("created_by_user_id").references(() => authUsers.id, {
+      onDelete: "set null",
+    }),
+    ...syncColumns,
+  },
+  (t) => [
+    index("incomes_household_received_idx").on(t.householdId, t.receivedOn),
+    index("incomes_household_seq_idx").on(t.householdId, t.serverSeq),
   ],
 ).enableRLS();
 

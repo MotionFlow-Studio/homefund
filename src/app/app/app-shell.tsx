@@ -18,7 +18,7 @@ type Item = { href: string; label: string; icon: typeof Home; match: (path: stri
 
 const ITEMS: Item[] = [
   { href: "/app", label: "Home", icon: Home, match: (p) => p === "/app" },
-  { href: "/app/expenses", label: "Expenses", icon: ReceiptText, match: (p) => p.startsWith("/app/expenses") },
+  { href: "/app/expenses", label: "Activity", icon: ReceiptText, match: (p) => p.startsWith("/app/expenses") },
   { href: "/app/scan", label: "Scan", icon: Camera, match: (p) => p.startsWith("/app/scan") },
   {
     href: "/app/overview",
@@ -82,12 +82,12 @@ function Sidebar({ path, householdName, me }: { path: string; householdName: str
               aria-current={active ? "page" : undefined}
               className={`flex h-11 items-center gap-3 rounded-xl px-3 text-[0.95rem] font-medium transition ${
                 active
-                  ? "bg-brand text-white shadow-sm dark:bg-teal-400/15 dark:text-teal-200"
+                  ? "bg-gradient-to-r from-teal-500 to-indigo-500 text-white shadow-md shadow-indigo-500/25"
                   : "text-black/65 hover:bg-black/[0.04] hover:text-black dark:text-white/60 dark:hover:bg-white/[0.06] dark:hover:text-white"
               }`}
             >
               <Icon size={19} aria-hidden />
-              {label === "Scan" ? "Scan receipt" : label}
+              {label === "Scan" ? "Scan receipt" : label === "Activity" ? "Transactions" : label}
             </Link>
           );
         })}
@@ -142,7 +142,7 @@ function TabBar({ path }: { path: string }) {
           if (label === "Scan") {
             return (
               <Link key={href} href={href} aria-label="Scan receipt" className="flex justify-center">
-                <span className="-mt-7 flex size-15 items-center justify-center rounded-full bg-gradient-to-b from-teal-400 to-teal-700 text-white shadow-[0_10px_30px_-6px_rgba(13,148,136,0.7)] ring-4 ring-background transition active:scale-95">
+                <span className="-mt-7 flex size-15 items-center justify-center rounded-full bg-gradient-to-br from-teal-400 to-indigo-600 text-white shadow-[0_10px_30px_-6px_rgba(13,148,136,0.7)] ring-4 ring-background transition active:scale-95">
                   <Camera size={26} aria-hidden />
                 </span>
               </Link>
@@ -154,7 +154,7 @@ function TabBar({ path }: { path: string }) {
               href={href}
               aria-current={active ? "page" : undefined}
               className={`flex flex-col items-center gap-1 text-[0.7rem] font-semibold transition ${
-                active ? "text-brand dark:text-teal-300" : "text-black/45 dark:text-white/45"
+                active ? "text-indigo-600 dark:text-teal-300" : "text-black/45 dark:text-white/45"
               }`}
             >
               <Icon size={22} strokeWidth={active ? 2.4 : 2} aria-hidden />

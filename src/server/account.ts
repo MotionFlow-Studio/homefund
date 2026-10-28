@@ -1,6 +1,6 @@
 import "server-only";
 import { and, asc, eq, inArray, isNotNull, isNull, ne, sql } from "drizzle-orm";
-import { expenses, fixedCosts, households, invites, members, paySettings, receiptItems } from "@/db/schema";
+import { expenses, fixedCosts, households, incomes, invites, members, paySettings, receiptItems } from "@/db/schema";
 import { db } from "@/server/db";
 import { lockSyncWrites } from "@/server/sync";
 
@@ -8,7 +8,7 @@ import { lockSyncWrites } from "@/server/sync";
  * Deleting an account removes everything that belongs to the person.
  *
  * - A household nobody else signs in to is deleted completely, with its
- *   members, expenses, receipt lines, budgets and invites.
+ *   members, expenses, incomes, receipt lines, budgets and invites.
  * - In a household shared with other accounts, the person's own records are
  *   removed: their member entry, budget, fixed costs and the expenses booked
  *   to them. The other phones still hold copies of those records, so each one
@@ -75,6 +75,10 @@ export async function deleteAccount(userId: string): Promise<DeletionSummary> {
         .set({ amountMinor: 1, category: "other", merchant: null, note: null, deletedAt: now, updatedAt: now, serverSeq: nextSeq })
         .where(eq(expenses.memberId, me.id));
       await tx
+        .update(incomes)
+        .set({ amountMinor: 1, source: "other", note: null, deletedAt: now, updatedAt: now, serverSeq: nextSeq })
+        .where(eq(incomes.memberId, me.id));
+      await tx
         .update(fixedCosts)
         .set({ name: WIPED, amountMinor: 0, deletedAt: now, updatedAt: now, serverSeq: nextSeq })
         .where(eq(fixedCosts.memberId, me.id));
@@ -108,6 +112,7 @@ async function deleteHousehold(tx: Tx, householdId: string) {
   await tx.delete(invites).where(eq(invites.householdId, householdId));
   await tx.delete(receiptItems).where(inArray(receiptItems.expenseId, expenseIds));
   await tx.delete(expenses).where(eq(expenses.householdId, householdId));
+  await tx.delete(incomes).where(eq(incomes.householdId, householdId));
   await tx.delete(fixedCosts).where(inArray(fixedCosts.memberId, memberIds));
   await tx.delete(paySettings).where(inArray(paySettings.memberId, memberIds));
   await tx.delete(members).where(eq(members.householdId, householdId));

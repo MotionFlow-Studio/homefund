@@ -3,8 +3,8 @@
 import { useLiveQuery } from "dexie-react-hooks";
 import type { CategoryId } from "@/lib/categories";
 import { localDb } from "@/lib/local/db";
-import { deleteExpense, newId, saveExpense } from "@/lib/local/store";
-import type { Expense, Member } from "@/lib/model";
+import { deleteExpense, deleteRecord, newId, saveExpense, saveRecord } from "@/lib/local/store";
+import type { Expense, Income, IncomeSource, Member } from "@/lib/model";
 
 /** Records a manual expense on the device; it syncs in the background. */
 export function addManualExpense(input: {
@@ -94,6 +94,51 @@ export function useHouseholdMembers(householdId: string): Member[] | undefined {
       (await localDb().members.where("householdId").equals(householdId).toArray())
         .filter((m) => m.deletedAt === null)
         .sort((a, b) => (a.role === "owner" ? -1 : b.role === "owner" ? 1 : a.name.localeCompare(b.name))),
+    [householdId],
+  );
+}
+
+/** Records money received on top of the pay; it syncs in the background. */
+export function saveIncome(input: {
+  id?: string;
+  householdId: string;
+  memberId: string;
+  userId: string | null;
+  amountMinor: number;
+  source: IncomeSource;
+  receivedOn: string;
+  note: string;
+  createdAt?: string;
+}): Promise<Income> {
+  return saveRecord("incomes", {
+    id: input.id ?? newId(),
+    householdId: input.householdId,
+    memberId: input.memberId,
+    amountMinor: input.amountMinor,
+    source: input.source,
+    receivedOn: input.receivedOn,
+    note: cleanNote(input.note),
+    createdByUserId: input.userId,
+    createdAt: input.createdAt,
+  });
+}
+
+/** Brings back a deleted income (used by Undo). */
+export function restoreIncome(income: Income): Promise<Income> {
+  return saveRecord("incomes", { ...income });
+}
+
+export function removeIncome(id: string) {
+  return deleteRecord("incomes", id);
+}
+
+/** All live extra incomes of a household, newest first. */
+export function useHouseholdIncomes(householdId: string): Income[] | undefined {
+  return useLiveQuery(
+    async () =>
+      (await localDb().incomes.where("householdId").equals(householdId).toArray())
+        .filter((i) => i.deletedAt === null)
+        .sort((a, b) => b.receivedOn.localeCompare(a.receivedOn) || b.createdAt.localeCompare(a.createdAt)),
     [householdId],
   );
 }
