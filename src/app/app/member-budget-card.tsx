@@ -117,7 +117,7 @@ export function MemberBudgetCard({
 }
 
 function Frame({ href, className = "", children }: { href?: string; className?: string; children: React.ReactNode }) {
-  const style = `block rounded-3xl border border-black/10 p-4 dark:border-white/10 ${className}`;
+  const style = `card block p-4 ${className}`;
   return href ? (
     <Link
       href={href}

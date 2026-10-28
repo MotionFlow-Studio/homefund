@@ -37,7 +37,7 @@ export function SettingsScreen() {
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section aria-label={title} className="rounded-3xl border border-black/10 p-5 dark:border-white/10">
+    <section aria-label={title} className="card p-5">
       <h2 className="mb-4 font-semibold">{title}</h2>
       {children}
     </section>
@@ -74,16 +74,16 @@ function Settings({ user, household, me }: { user: CurrentUser; household: House
   const money = (minor: number) => formatMoney(minor, household.currency);
 
   return (
-    <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-5 px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-10">
+    <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-5 px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-10 lg:max-w-2xl lg:px-10 lg:pt-10">
       <header className="flex items-center gap-2">
         <Link
           href="/app"
           aria-label="Back"
-          className="-ml-2 flex size-11 items-center justify-center rounded-full hover:bg-black/5 dark:hover:bg-white/10"
+          className="-ml-2 flex size-11 items-center justify-center rounded-full hover:bg-black/5 hidden dark:hover:bg-white/10"
         >
           <ArrowLeft size={22} />
         </Link>
-        <h1 className="flex-1 text-lg font-semibold">Settings</h1>
+        <h1 className="flex-1 text-2xl font-bold tracking-tight lg:text-3xl">Settings</h1>
       </header>
 
       <Section title="Profile">

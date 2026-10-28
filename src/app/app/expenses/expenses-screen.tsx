@@ -116,16 +116,16 @@ function ExpenseList({ household, me }: { household: Household; me: Member }) {
     }`;
 
   return (
-    <main className="mx-auto flex w-full max-w-md flex-1 flex-col px-4 pb-24 pt-[max(1rem,env(safe-area-inset-top))]">
+    <main className="mx-auto flex w-full max-w-md flex-1 flex-col px-4 pb-24 pt-[max(1rem,env(safe-area-inset-top))] lg:max-w-4xl lg:px-10 lg:pt-10">
       <header className="flex items-center gap-2">
         <Link
           href="/app"
           aria-label="Back to home"
-          className="-ml-2 flex h-11 w-11 items-center justify-center rounded-full hover:bg-black/5 dark:hover:bg-white/10"
+          className="-ml-2 flex h-11 w-11 items-center justify-center rounded-full hover:bg-black/5 hidden dark:hover:bg-white/10"
         >
           <ArrowLeft size={22} />
         </Link>
-        <h1 className="flex-1 text-lg font-semibold">Expenses</h1>
+        <h1 className="flex-1 text-2xl font-bold tracking-tight lg:text-3xl">Expenses</h1>
       </header>
 
       <div className="-mx-4 mt-4 flex gap-2 overflow-x-auto px-4 pb-1" role="group" aria-label="Filter by category">
@@ -256,7 +256,7 @@ function ExpenseList({ household, me }: { household: Household; me: Member }) {
       )}
 
       {toast ? (
-        <div className="fixed inset-x-0 bottom-0 z-30 mx-auto max-w-md px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
+        <div className="fixed inset-x-0 bottom-[calc(5rem+env(safe-area-inset-bottom))] z-30 mx-auto max-w-md px-4 lg:bottom-8 lg:left-64">
           <div
             role="status"
             className="flex items-center justify-between gap-3 rounded-2xl bg-neutral-900 px-4 py-3 text-sm text-white shadow-lg dark:bg-neutral-100 dark:text-neutral-900"

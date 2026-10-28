@@ -58,7 +58,7 @@ export function HomeSkeleton() {
         <Skeleton className="size-11 rounded-full" />
       </div>
       <Skeleton className="h-72 rounded-[2rem]" />
-      <div className="rounded-3xl border border-black/10 p-5 dark:border-white/10">
+      <div className="card p-5">
         <Skeleton className="mb-4 h-4 w-36" />
         <ListSkeleton rows={3} />
       </div>

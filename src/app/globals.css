@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f3f6f5;
+  --foreground: #14201e;
 }
 
 @theme inline {
@@ -17,8 +17,8 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #050d0c;
+    --foreground: #eef4f3;
   }
 
   /* The brand green is too dark to read as text on black; a lighter teal is. */
@@ -31,6 +31,23 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans), system-ui, sans-serif;
+}
+
+/* A surface for grouped content: white on the light background, glass on the dark one. */
+.card {
+  border-radius: 1.5rem;
+  background: #ffffff;
+  box-shadow:
+    0 1px 2px rgb(16 40 36 / 0.04),
+    0 8px 24px -12px rgb(16 40 36 / 0.12),
+    0 0 0 1px rgb(16 40 36 / 0.06);
+}
+
+@media (prefers-color-scheme: dark) {
+  .card {
+    background: rgb(255 255 255 / 0.035);
+    box-shadow: 0 0 0 1px rgb(255 255 255 / 0.08);
+  }
 }
 
 /* The line that sweeps over a receipt while it is being read. */

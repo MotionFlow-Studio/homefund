@@ -34,7 +34,7 @@ export function FamilyBudgets({ household, me }: { household: Household; me: Mem
   const money = (minor: number) => formatMoney(minor, household.currency);
 
   return (
-    <section aria-labelledby="family-title" className="rounded-3xl border border-black/10 p-5 dark:border-white/10">
+    <section aria-labelledby="family-title" className="card p-5">
       <div className="flex items-baseline justify-between">
         <h2 id="family-title" className="font-semibold">
           Family

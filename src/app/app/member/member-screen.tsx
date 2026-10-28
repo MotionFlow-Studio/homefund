@@ -75,7 +75,7 @@ function MemberDetails({ household, me, memberId }: { household: Household; me: 
   const largest = byCategory[0]?.amountMinor ?? 0;
 
   return (
-    <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-6 px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-10">
+    <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-6 px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-10 lg:max-w-3xl lg:px-10 lg:pt-10">
       <header className="flex items-center gap-3">
         {back}
         <span className="size-10 shrink-0 rounded-full" style={{ backgroundColor: member.color }} aria-hidden />
@@ -101,7 +101,7 @@ function MemberDetails({ household, me, memberId }: { household: Household; me: 
         ) : null}
       </section>
 
-      <section aria-labelledby="spending-title" className="rounded-3xl border border-black/10 p-5 dark:border-white/10">
+      <section aria-labelledby="spending-title" className="card p-5">
         <div className="flex items-baseline justify-between gap-3">
           <h2 id="spending-title" className="font-semibold">
             {budget ? `Since payday, ${paydayLabel(budget.start)}` : "This month"}
@@ -140,7 +140,7 @@ function MemberDetails({ household, me, memberId }: { household: Household; me: 
         )}
       </section>
 
-      <section aria-labelledby="recent-title" className="rounded-3xl border border-black/10 p-5 dark:border-white/10">
+      <section aria-labelledby="recent-title" className="card p-5">
         <div className="flex items-baseline justify-between">
           <h2 id="recent-title" className="font-semibold">
             Latest expenses

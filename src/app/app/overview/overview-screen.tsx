@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, ChartPie } from "lucide-react";
+import { ArrowLeft, ChartPie, UserPlus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
@@ -47,25 +47,31 @@ function Overview({ household, me }: { household: Household; me: Member }) {
   const overspent = totals.leftMinor < 0;
 
   return (
-    <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-6 px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-10">
+    <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-6 px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-10 lg:max-w-5xl lg:px-10 lg:pt-10">
       <header className="flex items-center gap-2">
         <Link
           href="/app"
           aria-label="Back"
-          className="-ml-2 flex size-11 items-center justify-center rounded-full hover:bg-black/5 dark:hover:bg-white/10"
+          className="-ml-2 flex size-11 items-center justify-center rounded-full hover:bg-black/5 hidden dark:hover:bg-white/10"
         >
           <ArrowLeft size={22} />
         </Link>
         <div className="min-w-0 flex-1">
-          <h1 className="text-lg font-semibold">Family overview</h1>
+          <h1 className="text-2xl font-bold tracking-tight lg:text-3xl">Family overview</h1>
           <p className="truncate text-sm opacity-60">{household.name}</p>
         </div>
+        <Link
+          href="/app/household"
+          className="inline-flex h-10 items-center gap-2 rounded-xl bg-black/[0.05] px-4 text-sm font-semibold hover:bg-black/[0.08] dark:bg-white/[0.07] dark:hover:bg-white/[0.12]"
+        >
+          <UserPlus size={16} aria-hidden /> Members
+        </Link>
       </header>
 
       <section
         aria-label="The whole family"
-        className={`rounded-[2rem] p-6 text-white shadow-sm ${
-          overspent ? "bg-gradient-to-br from-red-600 to-red-700" : "bg-gradient-to-br from-brand to-brand-strong"
+        className={`rounded-[2rem] p-6 text-white shadow-[0_24px_60px_-24px_rgba(13,148,136,0.65)] lg:p-8 ${
+          overspent ? "bg-gradient-to-br from-red-500 via-red-600 to-red-800" : "bg-gradient-to-br from-teal-500 via-teal-700 to-teal-900"
         }`}
       >
         <p className="text-sm font-medium text-white/85">{overspent ? "The family is over budget by" : "Left for the whole family"}</p>
@@ -93,7 +99,7 @@ function Overview({ household, me }: { household: Household; me: Member }) {
         <h2 id="members-title" className="mb-2 font-semibold">
           Where everyone is
         </h2>
-        <ul className="flex flex-col gap-3">
+        <ul className="flex flex-col gap-3 lg:grid lg:grid-cols-2">
           {overview.budgets.map((entry) => (
             <MemberBudgetCard
               key={entry.member.id}
@@ -107,7 +113,7 @@ function Overview({ household, me }: { household: Household; me: Member }) {
         </ul>
       </section>
 
-      <section aria-labelledby="categories-title" className="rounded-3xl border border-black/10 p-5 dark:border-white/10">
+      <section aria-labelledby="categories-title" className="card p-5">
         <div className="flex items-baseline justify-between gap-3">
           <h2 id="categories-title" className="font-semibold">
             {monthName} by category

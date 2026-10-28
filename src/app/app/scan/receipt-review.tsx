@@ -192,7 +192,7 @@ export function ReceiptReview({
   );
 
   return (
-    <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-6 px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-32">
+    <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-6 px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-32 lg:max-w-2xl lg:pt-10">
       <header className="flex items-center gap-2">
         <button
           type="button"
@@ -209,7 +209,7 @@ export function ReceiptReview({
 
       <section
         aria-label="Receipt summary"
-        className="rounded-3xl border border-black/10 bg-black/[0.02] p-5 dark:border-white/10 dark:bg-white/[0.03]"
+        className="card p-5"
       >
         <input
           value={merchant}
@@ -281,7 +281,7 @@ export function ReceiptReview({
         <h2 className="mb-2 text-sm font-medium">
           Items <span className="opacity-60">· tap an icon to change its category</span>
         </h2>
-        <ul className="divide-y divide-black/5 rounded-3xl border border-black/10 dark:divide-white/10 dark:border-white/10">
+        <ul className="card divide-y divide-black/5 dark:divide-white/10">
           {lines.map((line, index) => {
             const category = getCategory(line.category);
             const invalid = amounts[index] === null && line.amount !== "";
@@ -416,7 +416,7 @@ export function ReceiptReview({
         </fieldset>
       ) : null}
 
-      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-black/10 bg-background/95 backdrop-blur dark:border-white/10">
+      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-black/10 bg-background/95 backdrop-blur dark:border-white/10 lg:left-64">
         <div className="mx-auto flex max-w-md flex-col gap-2 px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
           {error ? (
             <p role="alert" className="text-center text-sm text-red-600 dark:text-red-400">

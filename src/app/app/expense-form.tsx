@@ -105,12 +105,12 @@ export function ExpenseForm({ household, me, members = [], expense, onClose, onS
       role="dialog"
       aria-modal="true"
       aria-labelledby="add-expense-title"
-      className="fixed inset-0 z-40 overflow-y-auto bg-background"
+      className="fixed inset-0 z-40 overflow-y-auto bg-background lg:bg-black/50 lg:py-12 lg:backdrop-blur-sm"
     >
       <form
         onSubmit={onSubmit}
         noValidate
-        className="mx-auto flex min-h-full w-full max-w-md flex-col gap-6 px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-[max(1rem,env(safe-area-inset-top))]"
+        className="mx-auto flex min-h-full w-full max-w-md flex-col gap-6 px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] lg:min-h-0 lg:rounded-3xl lg:bg-background lg:p-8 lg:shadow-2xl pt-[max(1rem,env(safe-area-inset-top))]"
       >
         <header className="flex items-center gap-2">
           <button

@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { CloudOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { signOut, useCurrentUser, type CurrentUser } from "@/lib/auth-client";
+import { useCurrentUser, type CurrentUser } from "@/lib/auth-client";
 import { useMyHousehold } from "@/lib/household";
 import { usePaySettings } from "@/lib/pay-settings";
 import type { Household, Member } from "@/lib/model";
@@ -51,10 +51,8 @@ function Unreachable({ onRetry }: { onRetry: () => void }) {
 }
 
 function SignedIn({ user }: { user: CurrentUser }) {
-  const router = useRouter();
   const household = useMyHousehold(user.id);
   const [server, setServer] = useState<"checking" | "synced" | "unreachable">("checking");
-  const [signingOut, setSigningOut] = useState(false);
 
   // A household made on another device arrives with the first sync. Until
   // one sync has worked, "no household here" may just mean "not loaded yet",
@@ -81,26 +79,10 @@ function SignedIn({ user }: { user: CurrentUser }) {
   if (household.status === "none" && server === "unreachable") return <Unreachable onRetry={check} />;
   if (household.status === "none") return <CreateHousehold user={user} />;
 
-  return <Ready household={household.household} me={household.me} onSignOut={onSignOut} signingOut={signingOut} />;
-
-  async function onSignOut() {
-    setSigningOut(true);
-    await signOut();
-    router.replace("/signin");
-  }
+  return <Ready household={household.household} me={household.me} />;
 }
 
-function Ready({
-  household,
-  me,
-  onSignOut,
-  signingOut,
-}: {
-  household: Household;
-  me: Member;
-  onSignOut: () => void;
-  signingOut: boolean;
-}) {
+function Ready({ household, me }: { household: Household; me: Member }) {
   const pay = usePaySettings(me.id);
 
   if (pay.status === "loading") return <HomeSkeleton />;
@@ -123,8 +105,6 @@ function Ready({
       me={me}
       settings={pay.settings}
       fixedCosts={pay.fixedCosts}
-      onSignOut={onSignOut}
-      signingOut={signingOut}
     />
   );
 }

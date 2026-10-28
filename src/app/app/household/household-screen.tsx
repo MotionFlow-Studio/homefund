@@ -53,7 +53,7 @@ function Family({ household, me }: { household: Household; me: Member }) {
   const members = useHouseholdMembers(household.id) ?? [];
 
   return (
-    <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-6 px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-10">
+    <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-6 px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-10 lg:max-w-2xl lg:px-10 lg:pt-10">
       <header className="flex items-center gap-2">
         <Link
           href="/app"
@@ -69,7 +69,7 @@ function Family({ household, me }: { household: Household; me: Member }) {
         <h2 id="members-title" className="mb-2 text-sm font-medium">
           Family members
         </h2>
-        <ul className="divide-y divide-black/5 rounded-3xl border border-black/10 dark:divide-white/10 dark:border-white/10">
+        <ul className="card divide-y divide-black/5 dark:divide-white/10">
           {members.map((member) => (
             <li key={member.id}>
               <Link
@@ -218,7 +218,7 @@ function Invites() {
       {open && open.length > 0 ? (
         <div>
           <h3 className="mt-2 mb-2 text-sm font-medium">Open codes</h3>
-          <ul className="divide-y divide-black/5 rounded-3xl border border-black/10 dark:divide-white/10 dark:border-white/10">
+          <ul className="card divide-y divide-black/5 dark:divide-white/10">
             {open.map((invite) => (
               <li key={invite.id} className="flex items-center gap-3 px-4 py-3">
                 <span className="min-w-0 flex-1 text-sm">
