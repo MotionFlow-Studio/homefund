@@ -49,3 +49,6 @@ docs/demo-script.md
 
 # Real receipt photos used for accuracy tests (personal data, never published)
 test/receipts/
+
+# Demo video (published separately)
+/demo/

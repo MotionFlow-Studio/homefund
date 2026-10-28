@@ -57,16 +57,19 @@ export function Dashboard({ household, me, settings, fixedCosts, onSignOut, sign
   const budget = useBudget(me.id, settings, fixedCosts);
   const [adding, setAdding] = useState(false);
   const recent = (useHouseholdExpenses(household.id) ?? []).slice(0, 5);
-  const [lastSaved, setLastSaved] = useState<Expense | null>(null);
+  // The "Saved" note with its undo, and when it goes away. The deadline is kept
+  // with it so the note does not come back when the user returns to this screen.
+  const [saved, setSaved] = useState<{ expense: Expense; until: number } | null>(null);
+  const lastSaved = saved?.expense ?? null;
   const members = useHouseholdMembers(household.id) ?? [];
   const memberById = new Map(members.map((m) => [m.id, m]));
   const today = localToday();
 
   useEffect(() => {
-    if (!lastSaved) return;
-    const timer = window.setTimeout(() => setLastSaved(null), 6000);
+    if (!saved) return;
+    const timer = window.setTimeout(() => setSaved(null), Math.max(0, saved.until - Date.now()));
     return () => window.clearTimeout(timer);
-  }, [lastSaved]);
+  }, [saved]);
 
   if (!budget) {
     return <HomeSkeleton />;
@@ -91,7 +94,7 @@ export function Dashboard({ household, me, settings, fixedCosts, onSignOut, sign
         onClose={() => setAdding(false)}
         onSaved={(expense) => {
           setAdding(false);
-          setLastSaved(expense);
+          setSaved({ expense, until: Date.now() + 6000 });
         }}
       />
     );
@@ -294,7 +297,7 @@ export function Dashboard({ household, me, settings, fixedCosts, onSignOut, sign
                 type="button"
                 onClick={async () => {
                   const id = lastSaved.id;
-                  setLastSaved(null);
+                  setSaved(null);
                   await removeExpense(id);
                 }}
                 className="font-semibold text-accent"
