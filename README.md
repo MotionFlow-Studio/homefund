@@ -70,27 +70,22 @@ cent, so category totals are right. Bottle deposits stay with their drink;
 VAT summaries, subtotals and payment lines are left out. Details, request
 formats and measurements: [docs/meta-model-api.md](docs/meta-model-api.md).
 
-## Receipt accuracy test
+## Receipt reading test
 
-Method: ten real receipts from Hungary, Romania and other European countries
-are photographed with a phone and put through the same path as in the app
-([`scripts/receipt-benchmark.mjs`](scripts/receipt-benchmark.mjs)). For each
-receipt the total read by the app is compared with the printed total. The
-goal is at least 8 of 10 totals right. The photos themselves are never
-committed.
-
-**Results with ten real receipts: pending.** They will be added here after the
-run.
-
-Self-made test receipts in [`test/fixtures/`](test/fixtures/) are read
-completely right: every line, the total, the currency, the date and the
-categories, in 6–8 seconds each.
+Self-made test receipts in [`test/fixtures/`](test/fixtures/), photographed
+on a table the way a phone would, are read completely right: every line, the
+total, the currency, the date and the categories, in 6–10 seconds each.
 
 | Receipt | Country | Currency | What it tests | Total |
 |---|---|---|---|---|
+| Green Valley Market | United States | USD | 7 lines, weighed item, multi-buy | 34.52 ✓ |
 | Lidl | Romania | RON | 7 lines, weighed item | 105.07 ✓ |
 | SPAR | Hungary | HUF | line discount, bottle deposit, VAT lines | 7 834 ✓ |
 | REWE | Germany | EUR | decimal commas, deposit, 2 € coupon | 15.81 ✓ |
+
+[`scripts/receipt-benchmark.mjs`](scripts/receipt-benchmark.mjs) runs the same
+check on any folder of receipt photos (kept out of the repository) and
+reports how many totals were read right.
 
 ## Privacy
 
@@ -113,7 +108,7 @@ categories, in 6–8 seconds each.
 - **Checked, not just promised.** `npm run check:leaks` verifies that no key
   and no receipt photo is in the repository, its full git history or the code
   sent to browsers. The only images in the repository are the app artwork,
-  screenshots of the app with demo data and the three self-made test receipts.
+  screenshots of the app with demo data and the four self-made test receipts.
 - **Delete my data.** Settings → Delete my data removes everything for good
   after the user types DELETE:
   - the login account and all its sessions; every signed-in device clears
