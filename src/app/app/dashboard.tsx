@@ -252,7 +252,9 @@ export function Dashboard({ household, me, settings, fixedCosts, onSignOut, sign
               const payer = memberById.get(e.memberId);
               return (
                 <li key={e.id} className="flex items-center gap-3 py-2">
-                  <CategoryBadge category={e.category} showLabel={false} />
+                  <span aria-hidden={!e.note && !e.merchant}>
+                    <CategoryBadge category={e.category} showLabel={false} />
+                  </span>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate font-medium">{e.note || e.merchant || getCategory(e.category).label}</span>
                     <span className="flex items-center gap-1.5 overflow-hidden text-xs whitespace-nowrap opacity-65">

@@ -25,6 +25,8 @@ export type SyncResponse = { cursor: string; more?: boolean; changes: ChangeSet 
 export type SyncTransport = (request: SyncRequest) => Promise<SyncResponse>;
 
 export const CURSOR_KEY = "syncCursor";
+/** Where the signed-in user is kept on the device (see auth-client). */
+const USER_KEY = "currentUser";
 
 export class OfflineError extends Error {
   constructor() {
@@ -66,15 +68,19 @@ export async function syncOnce(transport: SyncTransport = httpTransport): Promis
     (changes[entry.table] ??= [] as never[]).push(record as never);
   }
 
+  // Whose data this round is for. If they sign out or delete their account
+  // while it runs, nothing that arrives afterwards may be written back.
+  const user = (await db.meta.get(USER_KEY))?.value ?? null;
+
   let cursor = (await db.meta.get(CURSOR_KEY))?.value ?? null;
   let response = await transport({ cursor, changes });
-  let pulled = await merge(response, outbox);
+  let pulled = await merge(response, outbox, user);
 
   // A device far behind (or new) gets the rest page by page.
   for (let page = 0; response.more && page < MAX_PAGES; page++) {
     cursor = response.cursor;
     response = await transport({ cursor, changes: {} });
-    pulled += await merge(response, []);
+    pulled += await merge(response, [], user);
   }
 
   return { pushed: outbox.length, pulled };
@@ -88,10 +94,11 @@ const MAX_PAGES = 100;
  * meanwhile), merges incoming records with last write wins, and moves the
  * cursor.
  */
-async function merge(response: SyncResponse, sent: OutboxEntry[]): Promise<number> {
+async function merge(response: SyncResponse, sent: OutboxEntry[], user: string | null): Promise<number> {
   const db = localDb();
   let pulled = 0;
   await db.transaction("rw", [...SYNCED_TABLES.map((t) => db.table(t)), db.outbox, db.meta], async () => {
+    if (((await db.meta.get(USER_KEY))?.value ?? null) !== user) return;
     for (const entry of sent) {
       const current: OutboxEntry | undefined = await db.outbox.get(entry.key);
       if (current && current.queuedAt === entry.queuedAt) {

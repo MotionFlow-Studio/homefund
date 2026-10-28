@@ -159,7 +159,9 @@ function MemberDetails({ household, me, memberId }: { household: Household; me: 
           <ul className="mt-3 flex flex-col gap-1">
             {recent.map((e) => (
               <li key={e.id} className="flex items-center gap-3 py-1.5">
-                <CategoryBadge category={e.category} showLabel={false} size="sm" />
+                <span aria-hidden={!e.note && !e.merchant}>
+                  <CategoryBadge category={e.category} showLabel={false} size="sm" />
+                </span>
                 <span className="min-w-0 flex-1">
                   <span className="block truncate">{e.note || e.merchant || getCategory(e.category).label}</span>
                   <span className="block text-xs opacity-60">

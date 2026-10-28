@@ -170,3 +170,26 @@ describe("catching up", () => {
     expect((await listExpenses(householdId, "2026-10-01", "2026-10-31")).length).toBe(11);
   });
 });
+
+describe("signing out during a sync", () => {
+  it("does not write back what arrives after the device was cleared", async () => {
+    const server = fakeServer();
+    const other = new HomeFundDb(`other-${Math.random()}`);
+    setLocalDb(other);
+    await saveExpense(expenseDraft(4997));
+    await syncOnce(server.transport);
+
+    const phone = new HomeFundDb(`phone-${Math.random()}`);
+    setLocalDb(phone);
+    await phone.meta.put({ key: "currentUser", value: '{"id":"u1"}' });
+    // The answer comes back after the user signed out and the phone was cleared.
+    const slow: SyncTransport = async (request) => {
+      const response = await server.transport(request);
+      await phone.meta.clear();
+      return response;
+    };
+    await syncOnce(slow);
+    expect(await phone.expenses.count()).toBe(0);
+    expect(await phone.meta.count()).toBe(0);
+  });
+});

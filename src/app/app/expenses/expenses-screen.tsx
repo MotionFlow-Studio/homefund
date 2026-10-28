@@ -228,7 +228,9 @@ function ExpenseList({ household, me }: { household: Household; me: Member }) {
                           onClick={() => setEditing(e)}
                           className="-mx-2 flex w-[calc(100%+1rem)] items-center gap-3 rounded-2xl px-2 py-2.5 text-left hover:bg-black/5 dark:hover:bg-white/5"
                         >
-                          <CategoryBadge category={e.category} showLabel={false} />
+                          <span aria-hidden>
+                            <CategoryBadge category={e.category} showLabel={false} />
+                          </span>
                           <span className="min-w-0 flex-1">
                             <span className="block truncate font-medium">{title}</span>
                             <span className="block truncate text-sm opacity-60">
