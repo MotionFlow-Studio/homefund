@@ -68,6 +68,44 @@ export async function segment(jpeg: Buffer, prompt: string, signal: AbortSignal)
 }
 
 /**
+ * Asks Muse Spark 1.3 a text question with instructions and gets an answer
+ * that follows the given JSON schema. Returns the JSON text.
+ */
+export async function askAsJson(
+  instructions: string,
+  question: string,
+  schema: { name: string; schema: object },
+  effort: "minimal" | "low" | "medium" | "high",
+  signal: AbortSignal,
+): Promise<string> {
+  const response = await fetch(`${BASE_URL}/responses`, {
+    method: "POST",
+    headers: headers(),
+    body: JSON.stringify({
+      model: "muse-spark-1.3",
+      reasoning: { effort },
+      text: { format: { type: "json_schema", name: schema.name, schema: schema.schema, strict: true } },
+      input: [
+        { type: "message", role: "system", content: [{ type: "input_text", text: instructions }] },
+        { type: "message", role: "user", content: [{ type: "input_text", text: question }] },
+      ],
+    }),
+    signal,
+  });
+  if (!response.ok) throw new MetaApiError(response.status, "Muse Spark request failed");
+  return outputText(await response.json());
+}
+
+function outputText(body: { output_text?: unknown; output?: { content?: { type: string; text?: string }[] }[] }): string {
+  if (typeof body.output_text === "string") return body.output_text;
+  return (body.output ?? [])
+    .flatMap((item) => item.content ?? [])
+    .filter((part) => part.type === "output_text")
+    .map((part) => part.text ?? "")
+    .join("");
+}
+
+/**
  * Asks Muse Spark 1.3 about an image and gets an answer that follows the
  * given JSON schema. Returns the JSON text.
  */
@@ -91,12 +129,5 @@ export async function readImageAsJson(
   });
   if (!response.ok) throw new MetaApiError(response.status, "Muse Spark request failed");
 
-  const body = await response.json();
-  if (typeof body.output_text === "string") return body.output_text;
-  const text = (body.output ?? [])
-    .flatMap((item: { content?: { type: string; text?: string }[] }) => item.content ?? [])
-    .filter((part: { type: string }) => part.type === "output_text")
-    .map((part: { text?: string }) => part.text ?? "")
-    .join("");
-  return text;
+  return outputText(await response.json());
 }

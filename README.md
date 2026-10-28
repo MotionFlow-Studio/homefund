@@ -17,6 +17,14 @@ Live app: https://homefund.motionflowstudio.com
 - **Payday countdown.** Income, fixed costs and a savings goal give the money
   left until payday and a daily amount that adapts to every expense. Warnings
   when spending runs ahead or the budget is used up.
+- **Money in and out.** Record bonuses, side jobs, refunds, gifts and sales
+  next to expenses; extra income adds to what can be spent until payday.
+- **Payday forecast and charts.** Where the current pace leads on payday (or
+  the day the money runs out), spending through the period against an even
+  pace, the last 14 days and a category ring.
+- **A money coach.** Muse Spark 1.3 writes three insights about the pay
+  period and answers questions such as "Can I afford a $120 dinner on
+  Friday?" using the user's own numbers.
 - **Receipt scanning.** Take a photo in the app; the receipt is found, cropped
   and read: shop, date, every line, discounts and the total, each line in a
   category. You check and correct the lines, pick who paid, and save.
@@ -35,13 +43,14 @@ Live app: https://homefund.motionflowstudio.com
 
 ## How Meta models are used
 
-Receipt reading is a two-model pipeline on the Meta Model API, run on our
+Meta models do the heavy lifting in two places, both run on our
 server so the API key never reaches the phone.
 
 | Model | Where | What it does |
 |---|---|---|
 | **SAM 3.1** | [`src/server/receipt-scan.ts`](src/server/receipt-scan.ts), [`src/server/meta-api.ts`](src/server/meta-api.ts) | Finds the receipt in the photo (prompt: "receipt") and returns its box, so a small, tilted or off-centre receipt is cut out of the background before it is read. |
-| **Muse Spark 1.3** | [`src/server/receipt-scan.ts`](src/server/receipt-scan.ts), [`src/server/receipt-parse.ts`](src/server/receipt-parse.ts) | Reads the cropped receipt into a strict JSON schema: shop, date, currency, total and every line with its amount, quantity, unit price, kind (item, line discount, receipt discount) and one of ten categories. It also says when a receipt is too blurry to read, instead of guessing. |
+| **Muse Spark 1.3** (coach) | [`src/server/assistant.ts`](src/server/assistant.ts), [`src/app/app/coach.tsx`](src/app/app/coach.tsx) | Reads the pay period's totals (what is left, the pace, categories, last week against the week before, top shops) and writes three insights, or answers a question about the user's money with a verdict: fits, tight, doesn't fit. |
+| **Muse Spark 1.3** (receipts) | [`src/server/receipt-scan.ts`](src/server/receipt-scan.ts), [`src/server/receipt-parse.ts`](src/server/receipt-parse.ts) | Reads the cropped receipt into a strict JSON schema: shop, date, currency, total and every line with its amount, quantity, unit price, kind (item, line discount, receipt discount) and one of ten categories. It also says when a receipt is too blurry to read, instead of guessing. |
 
 ```
 photo (phone: upright, max 3072 px, metadata removed)
@@ -89,6 +98,9 @@ categories, in 6–8 seconds each.
   request ends. Only the result is kept: shop, date, amounts, lines and
   categories.
 - **The Meta API key stays on the server.** The phone never sees it.
+- **The coach sees totals, not people.** Insights and answers are based on
+  sums per category and day, shop names and dates; never names of family
+  members, notes or receipt lines. Nothing is stored or logged.
 - **Only the household sees its data.** Every table has row level security
   with no public access; all reads and writes go through the HomeFund server,
   which checks household membership. The app shows members each other's

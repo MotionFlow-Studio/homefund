@@ -14,6 +14,8 @@ import type { Expense, FixedCost, Household, Member, PaySettings } from "@/lib/m
 import { useBudget, useMemberDetail, usePeriodExpenses } from "@/lib/use-budget";
 import { dailySpending, forecast } from "@/lib/forecast";
 import { DailyBars, Donut, PaceChart, useCountUp } from "@/components/charts";
+import { buildFinanceContext } from "@/lib/assistant";
+import { AskCard, InsightsCard } from "./coach";
 import { initials } from "./app-shell";
 import { ExpenseForm } from "./expense-form";
 import { IncomeForm } from "./income-form";
@@ -103,6 +105,7 @@ export function Dashboard({ household, me, settings, fixedCosts }: Props) {
   const byCategory = detail?.byCategory ?? [];
   const fc = forecast(budget, periodExpenses ?? [], today);
   const lastTwoWeeks = dailySpending(periodExpenses ?? [], addDays(today, -13), today);
+  const coachContext = buildFinanceContext({ currency, today, budget, forecast: fc, byCategory, expenses: periodExpenses ?? [] });
   const dateLine = new Date(`${today}T12:00:00`).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" });
 
   if (adding === "expense") {
@@ -288,6 +291,8 @@ export function Dashboard({ household, me, settings, fixedCosts }: Props) {
           </div>
         </section>
 
+        <InsightsCard context={coachContext} className="lg:col-span-12" />
+
         <section aria-labelledby="daily-title" className="card p-6 lg:col-span-7">
           <div className="flex items-baseline justify-between gap-3">
             <h2 id="daily-title" className="flex items-center gap-2 font-semibold">
@@ -361,9 +366,7 @@ export function Dashboard({ household, me, settings, fixedCosts }: Props) {
           </p>
         ) : null}
 
-        <div className="lg:col-span-7">
-          <FamilyBudgets household={household} me={me} />
-        </div>
+        <AskCard context={coachContext} money={money} className="lg:col-span-7" />
 
         <section aria-label="Recent expenses" className="card p-6 lg:col-span-5 lg:row-span-2">
           <div className="flex items-baseline justify-between">
@@ -432,6 +435,10 @@ export function Dashboard({ household, me, settings, fixedCosts }: Props) {
             </ul>
           )}
         </section>
+
+        <div className="lg:col-span-7">
+          <FamilyBudgets household={household} me={me} />
+        </div>
       </div>
 
       {lastSaved ? (
