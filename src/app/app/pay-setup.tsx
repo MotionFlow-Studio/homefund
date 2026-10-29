@@ -1,12 +1,13 @@
 "use client";
 
-import { Plus, Trash2 } from "lucide-react";
+import { CalendarHeart, Plus, Trash2 } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { MoneyInput } from "@/components/ui/money-input";
 import { formatAmountInput, formatMoney, toMinor } from "@/lib/money";
 import type { FixedCost, PaySettings } from "@/lib/model";
 import { savePaySettings } from "@/lib/pay-settings";
+import { SetupFrame } from "./setup-frame";
 
 type Row = { key: string; id?: string; name: string; amount: string };
 
@@ -17,6 +18,8 @@ type Props = {
   fixedCosts: FixedCost[];
   onDone: () => void;
   onCancel?: () => void;
+  /** Set on the first run, where this is the second setup step. */
+  step?: 2;
 };
 
 const DAYS = Array.from({ length: 31 }, (_, i) => i + 1);
@@ -42,7 +45,7 @@ function asText(minor: number, currency: string) {
   return formatAmountInput(minor, currency);
 }
 
-export function PaySetup({ memberId, currency, settings, fixedCosts, onDone, onCancel }: Props) {
+export function PaySetup({ memberId, currency, settings, fixedCosts, onDone, onCancel, step }: Props) {
   const [paydayDay, setPaydayDay] = useState(settings?.paydayDay ?? 1);
   const [income, setIncome] = useState(settings ? asText(settings.incomeMinor, currency) : "");
   const [savings, setSavings] = useState(
@@ -104,20 +107,31 @@ export function PaySetup({ memberId, currency, settings, fixedCosts, onDone, onC
     onDone();
   }
 
-  return (
-    <main className="mx-auto flex w-full max-w-md flex-1 flex-col px-4 py-10">
-      <h1 className="text-2xl font-semibold">Your payday</h1>
-      <p className="mt-2 opacity-80">
-        Tell us when you get paid and what goes out every month. We will show what is left to spend until the next payday.
-      </p>
+  const preview = (
+    <Preview
+      available={available}
+      currency={currency}
+      incomeMinor={incomeMinor !== null && Number.isFinite(incomeMinor) ? incomeMinor : null}
+      fixedTotal={fixedTotal}
+      savingsMinor={Number.isFinite(savingsMinor) ? savingsMinor : 0}
+    />
+  );
 
-      <form onSubmit={onSubmit} noValidate className="mt-8 flex flex-col gap-6">
+  return (
+    <SetupFrame
+      step={step}
+      icon={<CalendarHeart size={26} />}
+      title="Your payday"
+      subtitle="When you get paid and what goes out every month. HomeFund shows what is left to spend until the next payday."
+      aside={<div className="hidden lg:block">{preview}</div>}
+    >
+      <form onSubmit={onSubmit} noValidate className="flex flex-col gap-6">
         <label className="flex flex-col gap-1.5">
           <span className="text-sm font-medium">Payday (day of the month)</span>
           <select
             value={paydayDay}
             onChange={(e) => setPaydayDay(Number(e.target.value))}
-            className="h-12 rounded-xl border border-black/15 bg-white px-4 text-base outline-none focus:border-brand focus:ring-4 focus:ring-brand/15 dark:border-white/15 dark:bg-white/5"
+            className="h-12 rounded-2xl border border-black/10 bg-white/90 shadow-sm shadow-black/[0.03] px-4 text-base outline-none focus:border-brand focus:ring-4 focus:ring-brand/15 dark:border-white/15 dark:bg-white/5"
           >
             {DAYS.map((d) => (
               <option key={d} value={d}>
@@ -152,7 +166,7 @@ export function PaySetup({ memberId, currency, settings, fixedCosts, onDone, onC
                   maxLength={60}
                   placeholder="Rent"
                   onChange={(e) => updateRow(row.key, { name: e.target.value })}
-                  className="h-12 w-full min-w-0 rounded-xl border border-black/15 bg-white px-4 outline-none focus:border-brand focus:ring-4 focus:ring-brand/15 dark:border-white/15 dark:bg-white/5"
+                  className="h-12 w-full min-w-0 rounded-2xl border border-black/10 bg-white/90 shadow-sm shadow-black/[0.03] px-4 outline-none focus:border-brand focus:ring-4 focus:ring-brand/15 dark:border-white/15 dark:bg-white/5"
                 />
                 {errors[`name-${row.key}`] ? (
                   <span className="text-sm text-red-600 dark:text-red-400">{errors[`name-${row.key}`]}</span>
@@ -165,7 +179,7 @@ export function PaySetup({ memberId, currency, settings, fixedCosts, onDone, onC
                   value={row.amount}
                   placeholder="0"
                   onChange={(e) => updateRow(row.key, { amount: e.target.value.replace(/[^\d.,\s]/g, "") })}
-                  className="h-12 w-full min-w-0 rounded-xl border border-black/15 bg-white px-3 text-right tabular-nums outline-none focus:border-brand focus:ring-4 focus:ring-brand/15 dark:border-white/15 dark:bg-white/5"
+                  className="h-12 w-full min-w-0 rounded-2xl border border-black/10 bg-white/90 shadow-sm shadow-black/[0.03] px-3 text-right tabular-nums outline-none focus:border-brand focus:ring-4 focus:ring-brand/15 dark:border-white/15 dark:bg-white/5"
                 />
                 {errors[`amount-${row.key}`] ? (
                   <span className="text-sm text-red-600 dark:text-red-400">{errors[`amount-${row.key}`]}</span>
@@ -200,17 +214,7 @@ export function PaySetup({ memberId, currency, settings, fixedCosts, onDone, onC
           placeholder="0"
         />
 
-        {available !== null ? (
-          <div className={`rounded-2xl p-4 ${available < 0 ? "bg-red-50 dark:bg-red-950/40" : "bg-brand/10"}`}>
-            <p className="text-sm opacity-80">Left to spend each pay period</p>
-            <p className={`text-2xl font-semibold tabular-nums ${available < 0 ? "text-red-600 dark:text-red-400" : ""}`}>
-              {formatMoney(available, currency)}
-            </p>
-            {available < 0 ? (
-              <p className="mt-1 text-sm">Your fixed costs and savings are more than your income.</p>
-            ) : null}
-          </div>
-        ) : null}
+        <div className="lg:hidden">{preview}</div>
 
         <div className="flex gap-3">
           {onCancel ? (
@@ -223,6 +227,60 @@ export function PaySetup({ memberId, currency, settings, fixedCosts, onDone, onC
           </Button>
         </div>
       </form>
-    </main>
+    </SetupFrame>
+  );
+}
+
+/** What is left each pay period, worked out live while the form is filled in. */
+function Preview({
+  available,
+  currency,
+  incomeMinor,
+  fixedTotal,
+  savingsMinor,
+}: {
+  available: number | null;
+  currency: string;
+  incomeMinor: number | null;
+  fixedTotal: number;
+  savingsMinor: number;
+}) {
+  const over = available !== null && available < 0;
+  return (
+    <section
+      aria-live="polite"
+      className={`relative overflow-hidden rounded-[1.75rem] p-6 text-white shadow-xl ${
+        over
+          ? "bg-gradient-to-br from-rose-500 via-red-500 to-orange-500 shadow-rose-500/30"
+          : "bg-gradient-to-br from-teal-400 via-cyan-600 to-indigo-600 shadow-cyan-600/30"
+      }`}
+    >
+      <div aria-hidden className="absolute -top-16 -right-16 size-48 rounded-full bg-white/20 blur-2xl" />
+      <p className="relative text-sm font-medium text-white/85">Left to spend each pay period</p>
+      <p className="relative mt-1 text-4xl font-bold tracking-tight tabular-nums">
+        {available !== null ? formatMoney(available, currency) : "—"}
+      </p>
+      {available === null ? (
+        <p className="relative mt-2 text-sm text-white/80">Enter your income to see it.</p>
+      ) : over ? (
+        <p className="relative mt-2 text-sm text-white/90">Your fixed costs and savings are more than your income.</p>
+      ) : (
+        <p className="relative mt-2 text-sm text-white/85">About {formatMoney(Math.floor(available / 30), currency)} a day.</p>
+      )}
+      <dl className="relative mt-5 grid gap-2 rounded-2xl bg-white/15 p-4 text-sm backdrop-blur">
+        <div className="flex justify-between">
+          <dt className="text-white/80">Income</dt>
+          <dd className="font-semibold tabular-nums">{incomeMinor !== null ? formatMoney(incomeMinor, currency) : "—"}</dd>
+        </div>
+        <div className="flex justify-between">
+          <dt className="text-white/80">Fixed costs</dt>
+          <dd className="font-semibold tabular-nums">{fixedTotal > 0 ? "−" : ""}{formatMoney(fixedTotal, currency)}</dd>
+        </div>
+        <div className="flex justify-between">
+          <dt className="text-white/80">Savings</dt>
+          <dd className="font-semibold tabular-nums">{savingsMinor > 0 ? "−" : ""}{formatMoney(savingsMinor, currency)}</dd>
+        </div>
+      </dl>
+    </section>
   );
 }

@@ -120,10 +120,10 @@ export default function Landing() {
               Sign in
             </Link>
             <Link
-              href="/signup"
+              href="/demo"
               className="rounded-xl bg-white px-4 py-2 text-sm font-semibold text-neutral-950 transition hover:bg-teal-100"
             >
-              Get started
+              Try the demo
             </Link>
           </div>
         </nav>
@@ -148,10 +148,10 @@ export default function Landing() {
               the whole family, on every phone, even offline.
             </p>
             <div className="mt-9 flex flex-col gap-3 sm:flex-row">
-              <PrimaryButton href="/signup">
-                Get started, it&apos;s free <ArrowRight size={18} aria-hidden />
+              <PrimaryButton href="/demo">
+                Try the demo, no sign-up <ArrowRight size={18} aria-hidden />
               </PrimaryButton>
-              <GhostButton href="/signin">Sign in</GhostButton>
+              <GhostButton href="/signup">Create a free account</GhostButton>
             </div>
             <ul className="mt-9 flex flex-wrap gap-x-6 gap-y-3 text-sm text-white/55">
               {["Installs like an app on iPhone and Android", "Works offline", "Every currency"].map((item) => (
@@ -484,10 +484,10 @@ export default function Landing() {
                 Create your free account <ArrowRight size={18} aria-hidden />
               </Link>
               <Link
-                href="/signin"
+                href="/demo"
                 className="inline-flex h-13 items-center justify-center rounded-2xl border border-white/40 px-8 font-semibold transition hover:bg-white/10"
               >
-                Sign in
+                Try the demo family
               </Link>
             </div>
           </div>
@@ -504,6 +504,9 @@ export default function Landing() {
           <div className="flex flex-wrap gap-x-6 gap-y-2">
             <Link href="/signin" className="hover:text-white">
               Sign in
+            </Link>
+            <Link href="/demo" className="hover:text-white">
+              Demo
             </Link>
             <Link href="/signup" className="hover:text-white">
               Create account

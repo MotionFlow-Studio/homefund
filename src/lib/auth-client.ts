@@ -89,6 +89,14 @@ export async function signIn(input: SignInInput): Promise<Result<CurrentUser>> {
   return { ok: true, value: result.value.user };
 }
 
+/** Signs in to a fresh demo family, made for this visit only. */
+export async function startDemo(): Promise<Result<CurrentUser>> {
+  const result = await post<{ user: CurrentUser }>("/api/demo");
+  if (!result.ok) return result;
+  await startSession(result.value.user);
+  return { ok: true, value: result.value.user };
+}
+
 /** Signs out and removes all HomeFund data from this device. */
 export async function signOut(): Promise<void> {
   await post("/api/auth/signout");

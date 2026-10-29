@@ -79,6 +79,20 @@ body {
   animation: scan-sweep 1.6s ease-in-out infinite alternate;
 }
 
+/* The bar on the demo screen while the family is being set up. */
+@keyframes demo-fill {
+  from {
+    width: 4%;
+  }
+  to {
+    width: 92%;
+  }
+}
+
+.demo-progress {
+  animation: demo-fill 4s cubic-bezier(0.2, 0.7, 0.3, 1) forwards;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .scan-line {
     animation: none;

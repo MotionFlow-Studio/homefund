@@ -243,7 +243,7 @@ export function IncomeForm({ household, me, members = [], income, onClose, onSav
             onChange={(e) => setNote(e.target.value)}
             maxLength={280}
             placeholder="For example: sold the old bike"
-            className="h-12 rounded-xl border border-black/15 bg-white px-4 outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/15 dark:border-white/15 dark:bg-white/5"
+            className="h-12 rounded-2xl border border-black/10 bg-white/90 shadow-sm shadow-black/[0.03] px-4 outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/15 dark:border-white/15 dark:bg-white/5"
           />
         </label>
 

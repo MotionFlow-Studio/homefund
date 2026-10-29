@@ -58,6 +58,8 @@ export function SignUpForm() {
   return (
     <AuthCard
       title="Create your account"
+      subtitle="Free, takes a minute. Your receipts are never stored."
+      demo
       footer={
         <>
           Already have an account?{" "}

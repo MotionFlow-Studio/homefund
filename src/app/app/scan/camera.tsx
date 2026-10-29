@@ -1,6 +1,6 @@
 "use client";
 
-import { Camera as CameraIcon, Flashlight, FlashlightOff, Images, X } from "lucide-react";
+import { Camera as CameraIcon, Flashlight, FlashlightOff, Images, Keyboard, ScanLine, Sparkles, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 type CameraState = "starting" | "live" | "denied" | "unavailable";
@@ -16,7 +16,16 @@ declare const ImageCapture: { new (track: MediaStreamTrack): ImageCaptureLike } 
  * access is not possible. The camera is turned off whenever the app is in the
  * background or a photo has been taken.
  */
-export function Camera({ onPhoto, onClose }: { onPhoto: (photo: Blob) => void; onClose: () => void }) {
+export function Camera({
+  onPhoto,
+  onClose,
+  onManual,
+}: {
+  onPhoto: (photo: Blob) => void;
+  onClose: () => void;
+  /** Type the expense in instead. */
+  onManual?: () => void;
+}) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const [state, setState] = useState<CameraState>("starting");
@@ -129,7 +138,7 @@ export function Camera({ onPhoto, onClose }: { onPhoto: (photo: Blob) => void; o
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-black text-white">
+    <div className="fixed inset-0 z-50 flex flex-col bg-[#030712] text-white">
       <div className="relative min-h-0 flex-1 overflow-hidden">
         <video
           ref={videoRef}
@@ -142,7 +151,12 @@ export function Camera({ onPhoto, onClose }: { onPhoto: (photo: Blob) => void; o
 
         {state === "live" ? (
           <div aria-hidden className="pointer-events-none absolute inset-0 flex items-center justify-center p-8 pt-24 pb-6">
-            <div className="relative aspect-[5/8] max-h-full w-full max-w-sm rounded-2xl border-2 border-white/80 shadow-[0_0_0_200vmax_rgba(0,0,0,0.45)]" />
+            <div className="relative aspect-[5/8] max-h-full w-full max-w-sm rounded-3xl shadow-[0_0_0_200vmax_rgba(2,6,23,0.55)]">
+              {["top-0 left-0 border-t-4 border-l-4 rounded-tl-3xl", "top-0 right-0 border-t-4 border-r-4 rounded-tr-3xl", "bottom-0 left-0 border-b-4 border-l-4 rounded-bl-3xl", "bottom-0 right-0 border-b-4 border-r-4 rounded-br-3xl"].map((corner) => (
+                <span key={corner} className={`absolute size-12 border-teal-300 drop-shadow-[0_0_10px_rgba(45,212,191,0.8)] ${corner}`} />
+              ))}
+              <span className="scan-line absolute inset-x-5 h-0.5 rounded-full bg-gradient-to-r from-transparent via-teal-300 to-transparent opacity-70 shadow-[0_0_14px_3px_rgba(45,212,191,0.5)]" />
+            </div>
           </div>
         ) : null}
 
@@ -157,7 +171,9 @@ export function Camera({ onPhoto, onClose }: { onPhoto: (photo: Blob) => void; o
             <X size={22} />
           </RoundButton>
           {state === "live" ? (
-            <p className="rounded-full bg-black/50 px-3 py-1.5 text-sm font-medium">Fit the whole receipt in the frame</p>
+            <p className="flex items-center gap-1.5 rounded-full bg-white/10 px-3.5 py-2 text-sm font-medium ring-1 ring-white/15 backdrop-blur-md">
+              <ScanLine size={15} aria-hidden className="text-teal-300" /> Fit the whole receipt in the frame
+            </p>
           ) : null}
           {torch !== null ? (
             <RoundButton label={torch ? "Turn flashlight off" : "Turn flashlight on"} onClick={toggleTorch} pressed={torch}>
@@ -172,27 +188,45 @@ export function Camera({ onPhoto, onClose }: { onPhoto: (photo: Blob) => void; o
           <p className="absolute inset-0 flex items-center justify-center text-sm opacity-70">Starting camera…</p>
         ) : null}
         {state === "denied" || state === "unavailable" ? (
-          <NoLiveCamera denied={state === "denied"} onPicked={onPicked} />
+          <NoLiveCamera denied={state === "denied"} onPicked={onPicked} onManual={onManual} />
         ) : null}
       </div>
 
       {state === "live" || state === "starting" ? (
-        <div className="flex items-center justify-between px-8 pt-5 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
-          <label className="flex size-12 cursor-pointer items-center justify-center rounded-full bg-white/15 active:bg-white/25">
-            <Images size={22} aria-hidden />
-            <span className="sr-only">Choose a photo from your library</span>
-            <input type="file" accept="image/*" className="sr-only" onChange={onPicked} />
-          </label>
-          <button
-            type="button"
-            onClick={takePhoto}
-            disabled={state !== "live" || taking}
-            aria-label="Take photo"
-            className="flex size-[4.5rem] items-center justify-center rounded-full border-4 border-white/90 transition active:scale-95 disabled:opacity-40"
-          >
-            <span className="size-14 rounded-full bg-white" />
-          </button>
-          <span className="size-12" />
+        <div className="bg-gradient-to-t from-black via-black/90 to-transparent px-6 pt-4 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+          <p className="mb-4 flex items-center justify-center gap-1.5 text-xs font-medium text-white/60">
+            <Sparkles size={13} aria-hidden className="text-fuchsia-300" /> SAM 3.1 finds it, Muse Spark 1.3 reads every line
+          </p>
+          <div className="mx-auto flex max-w-sm items-center justify-between">
+            <label className="flex w-16 cursor-pointer flex-col items-center gap-1.5 text-[0.7rem] font-medium text-white/70">
+              <span className="flex size-12 items-center justify-center rounded-full bg-white/10 ring-1 ring-white/15 backdrop-blur active:bg-white/25">
+                <Images size={21} aria-hidden />
+              </span>
+              Library
+              <input type="file" accept="image/*" className="sr-only" onChange={onPicked} aria-label="Choose a photo from your library" />
+            </label>
+            <button
+              type="button"
+              onClick={takePhoto}
+              disabled={state !== "live" || taking}
+              aria-label="Take photo"
+              className="flex size-[5rem] items-center justify-center rounded-full bg-gradient-to-br from-teal-300 via-cyan-400 to-indigo-500 p-1 shadow-[0_0_40px_-4px_rgba(45,212,191,0.7)] transition active:scale-95 disabled:opacity-40"
+            >
+              <span className="flex size-full items-center justify-center rounded-full bg-black/80 p-1">
+                <span className="size-full rounded-full bg-white" />
+              </span>
+            </button>
+            {onManual ? (
+              <button type="button" onClick={onManual} className="flex w-16 flex-col items-center gap-1.5 text-[0.7rem] font-medium text-white/70">
+                <span className="flex size-12 items-center justify-center rounded-full bg-white/10 ring-1 ring-white/15 backdrop-blur active:bg-white/25">
+                  <Keyboard size={21} aria-hidden />
+                </span>
+                Type it
+              </button>
+            ) : (
+              <span className="w-16" />
+            )}
+          </div>
         </div>
       ) : null}
     </div>
@@ -216,37 +250,71 @@ function RoundButton({
       aria-label={label}
       aria-pressed={pressed}
       onClick={onClick}
-      className={`flex size-11 items-center justify-center rounded-full ${pressed ? "bg-accent text-neutral-900" : "bg-black/50 text-white"}`}
+      className={`flex size-11 items-center justify-center rounded-full ring-1 backdrop-blur-md ${pressed ? "bg-accent text-neutral-900 ring-amber-200" : "bg-white/10 text-white ring-white/15"}`}
     >
       {children}
     </button>
   );
 }
 
-/** When the live camera cannot be used: the phone's camera app or the photo library. */
+/**
+ * When the live camera cannot be used: the phone's camera app or the photo
+ * library. On a computer a photo can also be dropped here.
+ */
 function NoLiveCamera({
   denied,
   onPicked,
+  onManual,
 }: {
   denied: boolean;
   onPicked: (event: React.ChangeEvent<HTMLInputElement>) => void;
+  onManual?: () => void;
 }) {
+  const [over, setOver] = useState(false);
   return (
-    <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 px-8 text-center">
-      <CameraIcon size={40} aria-hidden className="opacity-70" />
-      <p className="max-w-xs text-sm opacity-80">
-        {denied
-          ? "HomeFund may not use the camera. You can allow it in your browser settings, or take the photo with your camera app."
-          : "The live camera is not available here. Take the photo with your camera app or pick one from your library."}
-      </p>
-      <label className="flex h-12 w-full max-w-xs cursor-pointer items-center justify-center gap-2 rounded-2xl bg-brand font-semibold">
-        <CameraIcon size={20} aria-hidden /> Take a photo
-        <input type="file" accept="image/*" capture="environment" className="sr-only" onChange={onPicked} />
-      </label>
-      <label className="flex h-12 w-full max-w-xs cursor-pointer items-center justify-center gap-2 rounded-2xl bg-white/15 font-semibold">
-        <Images size={20} aria-hidden /> Choose from library
-        <input type="file" accept="image/*" className="sr-only" onChange={onPicked} />
-      </label>
+    <div
+      onDragOver={(e) => {
+        e.preventDefault();
+        setOver(true);
+      }}
+      onDragLeave={() => setOver(false)}
+      onDrop={(e) => {
+        e.preventDefault();
+        setOver(false);
+        const file = e.dataTransfer.files?.[0];
+        if (file?.type.startsWith("image/")) onPicked({ target: { files: [file], value: "" } } as unknown as React.ChangeEvent<HTMLInputElement>);
+      }}
+      className="absolute inset-0 flex items-center justify-center overflow-hidden px-6"
+    >
+      <div aria-hidden className="absolute -top-40 left-1/2 h-96 w-[40rem] -translate-x-1/2 rounded-full bg-gradient-to-r from-teal-500/30 via-cyan-500/20 to-indigo-500/30 blur-3xl" />
+      <div
+        className={`relative flex w-full max-w-sm flex-col items-center gap-4 rounded-[2rem] border-2 border-dashed p-8 text-center transition ${
+          over ? "border-teal-300 bg-teal-400/10" : "border-white/15 bg-white/[0.04]"
+        }`}
+      >
+        <span className="flex size-16 items-center justify-center rounded-2xl bg-gradient-to-br from-teal-400 via-cyan-500 to-indigo-500 shadow-lg shadow-cyan-500/30">
+          <ScanLine size={30} aria-hidden />
+        </span>
+        <h1 className="text-xl font-bold">Scan a receipt</h1>
+        <p className="text-sm leading-relaxed text-white/70">
+          {denied
+            ? "HomeFund may not use the camera. Allow it in your browser settings, or take the photo with your camera app."
+            : "Take the photo with your camera app, pick one from your library or drop it here."}
+        </p>
+        <label className="flex h-12 w-full cursor-pointer items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-teal-400 to-cyan-500 font-semibold text-neutral-950 shadow-lg shadow-teal-500/25">
+          <CameraIcon size={20} aria-hidden /> Take a photo
+          <input type="file" accept="image/*" capture="environment" className="sr-only" onChange={onPicked} />
+        </label>
+        <label className="flex h-12 w-full cursor-pointer items-center justify-center gap-2 rounded-2xl bg-white/10 font-semibold ring-1 ring-white/15">
+          <Images size={20} aria-hidden /> Choose from library
+          <input type="file" accept="image/*" className="sr-only" onChange={onPicked} />
+        </label>
+        {onManual ? (
+          <button type="button" onClick={onManual} className="text-sm font-semibold text-teal-300">
+            Type it in instead
+          </button>
+        ) : null}
+      </div>
     </div>
   );
 }

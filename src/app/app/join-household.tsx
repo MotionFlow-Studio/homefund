@@ -55,7 +55,7 @@ export function JoinHousehold({
           autoCapitalize="characters"
           spellCheck={false}
           inputMode="text"
-          className="h-14 rounded-xl border border-black/15 bg-white px-4 text-center font-mono text-2xl tracking-[0.2em] uppercase outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/15 dark:border-white/15 dark:bg-white/5"
+          className="h-14 rounded-2xl border border-black/10 bg-white/90 shadow-sm shadow-black/[0.03] px-4 text-center font-mono text-2xl tracking-[0.2em] uppercase outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/15 dark:border-white/15 dark:bg-white/5"
         />
       </label>
       <Field label="Your name" name="memberName" defaultValue={user.name} autoComplete="name" maxLength={60} required />

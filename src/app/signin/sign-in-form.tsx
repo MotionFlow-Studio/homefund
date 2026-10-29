@@ -38,6 +38,8 @@ export function SignInForm() {
   return (
     <AuthCard
       title="Welcome back"
+      subtitle="Sign in to see what is left until payday."
+      demo
       footer={
         <>
           New to HomeFund?{" "}

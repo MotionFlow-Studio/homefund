@@ -1,6 +1,6 @@
 "use client";
 
-import { CircleAlert, Clock, ImageOff, RotateCcw, ScanLine, TriangleAlert, WifiOff } from "lucide-react";
+import { Check, CircleAlert, Clock, ImageOff, RotateCcw, ScanLine, Sparkles, TriangleAlert, WifiOff } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -76,7 +76,13 @@ function ScanFlow({ household, me }: { household: Household; me: Member }) {
 
   switch (stage.name) {
     case "camera":
-      return <Camera onClose={close} onPhoto={(photo) => setStage({ name: "preview", photo })} />;
+      return (
+        <Camera
+          onClose={close}
+          onPhoto={(photo) => setStage({ name: "preview", photo })}
+          onManual={() => setStage({ name: "manual" })}
+        />
+      );
     case "preview":
       return (
         <PhotoView photo={stage.photo}>
@@ -94,7 +100,7 @@ function ScanFlow({ household, me }: { household: Household; me: Member }) {
           <button
             type="button"
             onClick={() => cancelReading({ name: "camera" })}
-            className="mt-3 h-12 w-full rounded-2xl bg-white/15 font-semibold active:bg-white/25"
+            className="mt-3 h-12 w-full rounded-2xl bg-white/10 font-semibold ring-1 ring-white/15 active:bg-white/25"
           >
             Cancel
           </button>
@@ -166,7 +172,7 @@ function PreviewActions({ photo, onRetake, onUse }: { photo: Blob; onRetake: () 
           type="button"
           onClick={onRetake}
           className={`flex h-14 items-center justify-center gap-2 rounded-2xl text-lg font-semibold active:scale-[0.98] ${
-            problem ? "bg-brand" : "bg-white/15 active:bg-white/25"
+            problem ? "bg-gradient-to-r from-teal-400 to-cyan-500 text-neutral-950 shadow-lg shadow-teal-500/25" : "bg-white/10 ring-1 ring-white/15 active:bg-white/25"
           }`}
         >
           <RotateCcw size={20} aria-hidden /> Retake
@@ -176,7 +182,7 @@ function PreviewActions({ photo, onRetake, onUse }: { photo: Blob; onRetake: () 
           onClick={onUse}
           disabled={quality === "checking"}
           className={`flex h-14 items-center justify-center gap-2 rounded-2xl text-lg font-semibold active:scale-[0.98] disabled:opacity-60 ${
-            problem ? "bg-white/15 active:bg-white/25" : "bg-brand"
+            problem ? "bg-white/10 ring-1 ring-white/15 active:bg-white/25" : "bg-gradient-to-r from-teal-400 to-cyan-500 text-neutral-950 shadow-lg shadow-teal-500/25"
           }`}
         >
           <ScanLine size={20} aria-hidden /> {problem ? "Use anyway" : "Use photo"}
@@ -229,34 +235,36 @@ function ScanFailed({
               : "Could not read the receipt";
 
   return (
-    <main className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center gap-6 px-4 py-10">
-      <div>
-        <span className="flex size-14 items-center justify-center rounded-full bg-black/5 dark:bg-white/10">
-          <Icon size={26} aria-hidden />
-        </span>
-        <h1 className="mt-4 text-2xl font-bold">{title}</h1>
-        <p role="alert" className="mt-2 opacity-80">
-          {SCAN_ERROR_TEXT[error]}
-        </p>
-      </div>
-      <div className="flex flex-col gap-3">
-        {signedOut ? (
-          <Button onClick={onSignIn}>Sign in again</Button>
-        ) : retrySame ? (
-          <>
-            <Button onClick={onRetry} disabled={wait > 0}>
-              {wait > 0 ? `Try again in ${wait} s` : "Try again"}
-            </Button>
-            <Button variant="secondary" onClick={onRetake}>
-              Take a new photo
-            </Button>
-          </>
-        ) : (
-          <Button onClick={onRetake}>Take a new photo</Button>
-        )}
-        <Button variant="secondary" onClick={onManual}>
-          Enter it yourself
-        </Button>
+    <main className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center px-4 py-10">
+      <div className="card flex flex-col gap-6 p-6 sm:p-8">
+        <div>
+          <span className="flex size-14 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-400 via-orange-500 to-rose-500 text-white shadow-lg shadow-orange-500/30">
+            <Icon size={26} aria-hidden />
+          </span>
+          <h1 className="mt-4 text-2xl font-bold">{title}</h1>
+          <p role="alert" className="mt-2 opacity-80">
+            {SCAN_ERROR_TEXT[error]}
+          </p>
+        </div>
+        <div className="flex flex-col gap-3">
+          {signedOut ? (
+            <Button onClick={onSignIn}>Sign in again</Button>
+          ) : retrySame ? (
+            <>
+              <Button onClick={onRetry} disabled={wait > 0}>
+                {wait > 0 ? `Try again in ${wait} s` : "Try again"}
+              </Button>
+              <Button variant="secondary" onClick={onRetake}>
+                Take a new photo
+              </Button>
+            </>
+          ) : (
+            <Button onClick={onRetake}>Take a new photo</Button>
+          )}
+          <Button variant="secondary" onClick={onManual}>
+            Enter it yourself
+          </Button>
+        </div>
       </div>
     </main>
   );
@@ -274,21 +282,22 @@ function PhotoView({ photo, reading, children }: { photo: Blob; reading?: boolea
   }, [photo]);
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-black text-white">
+    <div className="fixed inset-0 z-50 flex flex-col bg-[#030712] text-white">
       <div className="relative min-h-0 flex-1 overflow-hidden pt-[env(safe-area-inset-top)]">
         {/* eslint-disable-next-line @next/next/no-img-element -- a local, temporary photo */}
         <img
           ref={imageRef}
           alt="Your receipt photo"
-          className={`size-full object-contain transition-opacity ${reading ? "opacity-50" : ""}`}
+          className={`size-full object-contain transition duration-700 ${reading ? "scale-[0.97] opacity-60 saturate-50" : ""}`}
         />
         {reading ? (
           <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-full">
-            <div className="scan-line absolute inset-x-6 h-0.5 rounded-full bg-accent shadow-[0_0_16px_4px_rgba(251,191,36,0.6)]" />
+            <div className="absolute inset-0 bg-gradient-to-b from-teal-500/10 via-transparent to-indigo-500/15" />
+            <div className="scan-line absolute inset-x-6 h-1 rounded-full bg-gradient-to-r from-teal-300 via-cyan-300 to-fuchsia-400 shadow-[0_0_24px_6px_rgba(45,212,191,0.55)]" />
           </div>
         ) : null}
       </div>
-      <div className="px-4 pt-5 pb-[max(1.5rem,env(safe-area-inset-bottom))]">{children}</div>
+      <div className="mx-auto w-full max-w-md px-4 pt-5 pb-[max(1.5rem,env(safe-area-inset-bottom))]">{children}</div>
     </div>
   );
 }
@@ -309,15 +318,39 @@ function ReadingStatus({ onManual }: { onManual: () => void }) {
   }, []);
 
   return (
-    <div className="flex flex-col items-center gap-3">
-      <p role="status" className="text-center text-lg font-semibold">
-        {slow ? "Taking longer than usual…" : READING_STEPS[step]}
-      </p>
+    <div className="flex flex-col gap-3">
+      <div className="rounded-3xl bg-white/[0.07] p-4 ring-1 ring-white/10 backdrop-blur">
+        <div className="flex items-center justify-between gap-3">
+          <p role="status" className="text-base font-semibold">
+            {slow ? "Taking longer than usual…" : READING_STEPS[step]}
+          </p>
+          <span className="flex shrink-0 items-center gap-1 rounded-full bg-gradient-to-r from-indigo-500 to-fuchsia-500 px-2.5 py-1 text-[0.7rem] font-semibold">
+            <Sparkles size={12} aria-hidden /> Meta AI
+          </span>
+        </div>
+        <ol aria-hidden className="mt-3 grid grid-cols-4 gap-1.5">
+          {READING_STEPS.map((label, i) => (
+            <li key={label} className="flex flex-col gap-1.5">
+              <span className="h-1.5 overflow-hidden rounded-full bg-white/10">
+                <span
+                  className={`block h-full rounded-full bg-gradient-to-r from-teal-300 to-cyan-400 transition-all duration-[2000ms] ${
+                    i < step ? "w-full" : i === step ? "w-2/3" : "w-0"
+                  }`}
+                />
+              </span>
+              <span className={`flex items-center gap-1 text-[0.65rem] ${i <= step ? "text-white/80" : "text-white/35"}`}>
+                {i < step ? <Check size={11} strokeWidth={3} className="text-teal-300" /> : null}
+                {["Find", "Read", "Sort", "Check"][i]}
+              </span>
+            </li>
+          ))}
+        </ol>
+      </div>
       {slow ? (
         <button
           type="button"
           onClick={onManual}
-          className="h-12 w-full rounded-2xl bg-brand font-semibold active:scale-[0.98]"
+          className="h-12 w-full rounded-2xl bg-gradient-to-r from-teal-400 to-cyan-500 text-neutral-950 shadow-lg shadow-teal-500/25 font-semibold active:scale-[0.98]"
         >
           Enter it yourself instead
         </button>

@@ -31,7 +31,7 @@ export function MoneyInput({ label, currency, value, onChange, error, name, plac
           onChange={(e) => onChange(e.target.value.replace(/[^\d.,\s]/g, ""))}
           aria-invalid={error ? true : undefined}
           aria-describedby={error ? `${id}-error` : hint ? `${id}-hint` : undefined}
-          className="h-12 w-full rounded-xl border border-black/15 bg-white pl-4 pr-16 text-base tabular-nums outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/15 dark:border-white/15 dark:bg-white/5"
+          className="h-12 w-full rounded-2xl border border-black/10 bg-white/90 shadow-sm shadow-black/[0.03] pl-4 pr-16 text-base tabular-nums outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/15 dark:border-white/15 dark:bg-white/5"
         />
         <span className="pointer-events-none absolute right-4 font-mono text-sm opacity-60">{currency}</span>
       </span>

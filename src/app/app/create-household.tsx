@@ -1,6 +1,6 @@
 "use client";
 
-import { UserPlus } from "lucide-react";
+import { ArrowRight, House, UserPlus } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { z } from "zod";
 import { CurrencyPicker } from "@/components/currency-picker";
@@ -12,6 +12,7 @@ import { createHousehold } from "@/lib/household";
 import { requestSync } from "@/lib/local/sync-status";
 import { isCurrency } from "@/lib/money";
 import { JoinHousehold } from "./join-household";
+import { SetupFrame } from "./setup-frame";
 
 const formSchema = z.object({
   householdName: z.string().trim().min(1, "Give your household a name").max(80),
@@ -50,36 +51,47 @@ export function CreateHousehold({ user }: { user: CurrentUser }) {
 
   if (joining) {
     return (
-      <main className="mx-auto flex w-full max-w-md flex-1 flex-col px-4 py-10">
-        <h1 className="text-2xl font-semibold">Join a household</h1>
-        <p className="mt-2 mb-8 opacity-80">Ask the person who set up HomeFund in your family for an invite code.</p>
+      <SetupFrame
+        step={1}
+        icon={<UserPlus size={26} />}
+        title="Join your family"
+        subtitle="Ask the person who set up HomeFund in your family for an invite code."
+      >
         <JoinHousehold user={user} />
-        <button type="button" onClick={() => setJoining(false)} className="mt-6 self-center text-sm font-semibold text-brand">
+        <button type="button" onClick={() => setJoining(false)} className="mt-5 w-full text-center text-sm font-semibold text-brand">
           Set up a new household instead
         </button>
-      </main>
+      </SetupFrame>
     );
   }
 
   return (
-    <main className="mx-auto flex w-full max-w-md flex-1 flex-col px-4 py-10">
-      <h1 className="text-2xl font-semibold">Set up your household</h1>
-      <p className="mt-2 opacity-80">
-        Your household is shared with your family. Everyone sees the same budget, in one currency.
-      </p>
+    <SetupFrame
+      step={1}
+      icon={<House size={26} />}
+      title={firstName ? `Welcome, ${firstName}!` : "Set up your household"}
+      subtitle="Your household is shared with your family. Everyone sees the same budget, in one currency."
+    >
       <button
         type="button"
         onClick={() => setJoining(true)}
-        className="mt-5 flex items-center gap-3 rounded-2xl border border-brand/30 bg-brand/5 p-4 text-left transition hover:bg-brand/10"
+        className="group flex w-full items-center gap-3 rounded-2xl bg-gradient-to-r from-indigo-500/10 via-violet-500/10 to-fuchsia-500/10 p-4 text-left ring-1 ring-indigo-500/20 transition hover:ring-indigo-500/40"
       >
-        <UserPlus size={22} aria-hidden className="shrink-0 text-brand" />
-        <span>
-          <span className="block font-semibold">Got an invite code?</span>
-          <span className="block text-sm opacity-75">Join your family&rsquo;s household instead.</span>
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-fuchsia-500 text-white shadow-md shadow-indigo-500/30">
+          <UserPlus size={19} aria-hidden />
         </span>
+        <span className="min-w-0 flex-1">
+          <span className="block font-semibold">Got an invite code?</span>
+          <span className="block text-sm opacity-70">Join your family&rsquo;s household instead.</span>
+        </span>
+        <ArrowRight size={18} aria-hidden className="shrink-0 text-indigo-600 transition group-hover:translate-x-0.5 dark:text-indigo-300" />
       </button>
 
-      <form onSubmit={onSubmit} noValidate className="mt-8 flex flex-col gap-5">
+      <div className="my-6 flex items-center gap-3 text-xs font-semibold tracking-wider uppercase opacity-50">
+        <span className="h-px flex-1 bg-current opacity-30" /> or start a new one <span className="h-px flex-1 bg-current opacity-30" />
+      </div>
+
+      <form onSubmit={onSubmit} noValidate className="flex flex-col gap-5">
         <Field
           label="Household name"
           name="householdName"
@@ -102,9 +114,9 @@ export function CreateHousehold({ user }: { user: CurrentUser }) {
         <CurrencyPicker value={currency} onChange={setCurrency} error={errors.currency} />
 
         <Button type="submit" loading={saving}>
-          Create household
+          Create household <ArrowRight size={18} aria-hidden className="ml-2" />
         </Button>
       </form>
-    </main>
+    </SetupFrame>
   );
 }

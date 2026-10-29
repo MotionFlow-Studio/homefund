@@ -261,7 +261,7 @@ export function ExpenseForm({ household, me, members = [], expense, onClose, onS
               maxLength={280}
               placeholder="What was it for?"
               autoFocus={!expense}
-              className="h-12 rounded-xl border border-black/15 bg-white px-4 outline-none focus:border-brand focus:ring-4 focus:ring-brand/15 dark:border-white/15 dark:bg-white/5"
+              className="h-12 rounded-2xl border border-black/10 bg-white/90 shadow-sm shadow-black/[0.03] px-4 outline-none focus:border-brand focus:ring-4 focus:ring-brand/15 dark:border-white/15 dark:bg-white/5"
             />
           </label>
         ) : (

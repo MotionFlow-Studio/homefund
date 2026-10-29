@@ -95,6 +95,7 @@ function Ready({ household, me }: { household: Household; me: Member }) {
         settings={null}
         fixedCosts={pay.fixedCosts}
         onDone={() => undefined}
+        step={2}
       />
     );
   }

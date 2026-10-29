@@ -1,10 +1,11 @@
 "use client";
 
-import { Camera, ChartPie, Home, LogOut, ReceiptText, Settings2, UserPlus } from "lucide-react";
+import { Camera, ChartPie, Home, LogOut, ReceiptText, Settings2, Sparkles, UserPlus } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import { signOut, useCurrentUser } from "@/lib/auth-client";
+import { isDemoEmail } from "@/lib/demo";
 import { useMyHousehold } from "@/lib/household";
 import type { Member } from "@/lib/model";
 
@@ -48,11 +49,13 @@ export function AppShell({ children }: { children: ReactNode }) {
   const focused = path.startsWith("/app/scan");
 
   if (!ready) return <>{children}</>;
+  const demo = auth.status === "signed_in" && isDemoEmail(auth.user.email);
 
   return (
     <div className="flex min-h-dvh flex-1">
       <Sidebar path={path} householdName={household.household.name} me={household.me} />
       <div className={`flex min-w-0 flex-1 flex-col lg:pl-64 ${focused ? "" : "pb-[calc(4.5rem+env(safe-area-inset-bottom))] lg:pb-0"}`}>
+        {demo && !focused ? <DemoBanner /> : null}
         {children}
       </div>
       {focused ? null : <TabBar path={path} />}
@@ -127,6 +130,35 @@ function Sidebar({ path, householdName, me }: { path: string; householdName: str
         </button>
       </div>
     </aside>
+  );
+}
+
+/** Shown in the demo family, with the way to a real account. */
+function DemoBanner() {
+  const router = useRouter();
+  const [leaving, setLeaving] = useState(false);
+  return (
+    <div className="mx-auto flex w-full max-w-md px-4 pt-[max(0.75rem,env(safe-area-inset-top))] lg:max-w-6xl lg:px-10 lg:pt-6">
+      <div className="flex w-full items-center gap-3 rounded-2xl bg-gradient-to-r from-indigo-500 via-violet-500 to-fuchsia-500 px-4 py-2.5 text-sm text-white shadow-lg shadow-indigo-500/20">
+        <Sparkles size={17} className="shrink-0" aria-hidden />
+        <p className="min-w-0 flex-1 leading-snug">
+          <strong className="font-semibold">Demo family.</strong>{" "}
+          <span className="opacity-90">Try anything, it resets after a day.</span>
+        </p>
+        <button
+          type="button"
+          disabled={leaving}
+          onClick={async () => {
+            setLeaving(true);
+            await signOut();
+            router.replace("/signup");
+          }}
+          className="shrink-0 rounded-xl bg-white px-3 py-1.5 text-xs font-semibold text-indigo-700 transition hover:bg-indigo-50 disabled:opacity-60"
+        >
+          Create my own
+        </button>
+      </div>
+    </div>
   );
 }
 
