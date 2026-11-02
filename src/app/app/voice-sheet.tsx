@@ -45,7 +45,6 @@ export function VoiceSheet({ currency, onResult, onClose }: { currency: string; 
     queueMicrotask(() => void begin());
     return () => recording.current?.cancel();
     // Starts once when the sheet opens.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // The ring follows the voice; the timer stops at the limit.
